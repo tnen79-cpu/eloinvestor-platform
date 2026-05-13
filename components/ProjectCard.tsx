@@ -1,32 +1,49 @@
 import Link from 'next/link';
-import { formatMoney, getCategoryLabel, getDictionary } from '@/lib/data';
+import { SaveProjectButton } from '@/components/SaveProjectButton';
+import { ReportButton } from '@/components/ReportButton';
+import { getCategoryLabel, getDictionary } from '@/lib/data';
+import { formatMoneyForCountry, type DbCountry, type UiProject } from '@/lib/server-data';
 
-type Project = {
-  slug: string; country: string; titleAr: string; titleEn: string; cityAr: string; cityEn: string; price: number; roi: number; category: string; verified: boolean; image: string;
-};
-
-export function ProjectCard({ project, lang }: { project: Project; lang: string }) {
+export function ProjectCard({ project, lang, country }: { project: UiProject; lang: string; country?: DbCountry }) {
   const t = getDictionary(lang);
   const isAr = lang === 'ar';
+  const city = isAr ? project.cityAr : project.cityEn;
+  const title = isAr ? project.titleAr : project.titleEn;
+  const routeId = encodeURIComponent(project.id || project.slug);
+  const href = `/${project.country}/${lang}/project/${routeId}`;
+  const score = project.verified ? 'A+' : project.roi && project.roi > 10 ? 'A' : 'B+';
+
   return (
-    <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-2xl hover:shadow-emerald-900/10">
-      <div className="relative h-56 overflow-hidden">
-        <img src={project.image} alt="" className="h-full w-full object-cover transition duration-700 hover:scale-105" />
-        {project.verified && <span className="absolute start-4 top-4 rounded-full bg-emerald-600 px-3 py-2 text-xs font-black text-white">✓ {t.verified}</span>}
-        <span className="absolute end-4 top-4 rounded-full bg-white/90 px-3 py-2 text-xs font-black text-emerald-900 backdrop-blur">{project.roi}% {t.roi}</span>
-      </div>
-      <div className="space-y-4 p-5">
-        <div>
-          <p className="text-sm font-bold text-slate-500">📍 {isAr ? project.cityAr : project.cityEn} · {getCategoryLabel(project.category, lang)}</p>
-          <h3 className="mt-2 line-clamp-2 text-xl font-black text-slate-950">{isAr ? project.titleAr : project.titleEn}</h3>
+    <article className="listing-card">
+      <Link href={href} className="block">
+        <div className="listing-thumb">
+          <img src={project.image} alt={title} loading="lazy" />
+          {project.verified && <span className="badge">{t.verified}</span>}
+          {project.isSponsored && <span className="badge sponsored">👑 {isAr ? 'ممول' : 'Sponsored'}</span>}
+          {!!project.roi && <span className="badge hot">🔥 {project.roi}%</span>}
         </div>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold text-slate-500">{t.price}</p>
-            <p className="text-2xl font-black text-emerald-800">{formatMoney(project.price, project.country, lang)}</p>
-          </div>
-          <Link href={`/${project.country}/${lang}/project/${project.slug}`} className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-black text-white">{t.details}</Link>
+      </Link>
+      <div className="listing-body">
+        <Link href={href}><h3 className="line-clamp-2">{title}</h3></Link>
+        <div className="meta">
+          <span>📍 {city || (isAr ? 'غير محدد' : 'Not specified')}</span>
+          <span>{getCategoryLabel(project.category, lang)}</span>
+          <span>👥 {project.contacts || 0} {isAr ? 'مهتم' : 'Leads'}</span>
         </div>
+        <div className="price-row">
+          <div className="price"><small>{t.price}</small><b>{formatMoneyForCountry(project.price, country, lang)}</b></div>
+          <div className="score-chip">{score}</div>
+        </div>
+        <div className="insights">
+          <div className="insight"><span>{isAr ? 'المخاطر' : 'Risk'}</span><b>{isAr ? 'منخفضة' : 'Low'}</b></div>
+          <div className="insight"><span>{isAr ? 'الطلب' : 'Demand'}</span><b>{project.contacts ? (isAr ? 'مرتفع' : 'High') : (isAr ? 'جديد' : 'New')}</b></div>
+          <div className="insight"><span>{isAr ? 'المشاهدات' : 'Views'}</span><b>{project.views || 0}</b></div>
+        </div>
+        <div className="card-actions">
+          <Link href={href} className="btn btn-green">{t.details}</Link>
+        </div>
+        <SaveProjectButton projectId={project.id || project.slug} project={{ id: project.id, slug: project.slug, title: title, title_ar: project.titleAr, title_en: project.titleEn, price: project.price, roi: project.roi, city: city, cover_image_url: project.image, category: project.category }} lang={lang} country={project.country} />
+        <ReportButton compact targetType="project" targetId={project.id || project.slug} projectId={project.id || project.slug} reportedUserId={project.ownerId} lang={lang} />
       </div>
     </article>
   );

@@ -1,14 +1,15 @@
-import { Header } from '@/components/Header';
-import { MobileNav } from '@/components/MobileNav';
+export const dynamic = 'force-dynamic';
+import { PublicChrome } from '@/components/PublicChrome';
+import { getCountries, getCountryByCode } from '@/lib/server-data';
 
 export default async function CountryLangLayout({ children, params }: { children: React.ReactNode; params: Promise<{ country: string; lang: string }> }) {
   const { country, lang } = await params;
-  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const countries = await getCountries();
+  const activeCountry = await getCountryByCode(country);
+
   return (
-    <div dir={dir} lang={lang} className="min-h-screen bg-[#f5faf7] pb-20 text-slate-950 md:pb-0">
-      <Header country={country} lang={lang} />
+    <PublicChrome country={activeCountry.code} lang={lang} countries={countries}>
       {children}
-      <MobileNav country={country} lang={lang} />
-    </div>
+    </PublicChrome>
   );
 }
