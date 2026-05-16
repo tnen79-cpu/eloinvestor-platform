@@ -1,0 +1,4 @@
+V82.1 deploy fix:
+- Removed package-lock.json completely to avoid duplicate lock files and npm ci issues.
+- Vercel install should use: npm install --legacy-peer-deps --registry=https://registry.npmjs.org/
+- Keep .npmrc with registry=https://registry.npmjs.org/
