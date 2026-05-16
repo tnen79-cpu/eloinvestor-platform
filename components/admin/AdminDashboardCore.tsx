@@ -38,6 +38,9 @@ import {
   FileText,
   CreditCard,
   Languages,
+  Menu,
+  X,
+  Home,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AnalyticsBars } from '@/components/AnalyticsBars';
@@ -127,6 +130,8 @@ type AdminProject = {
   contacts: number;
   saves: number;
   createdAt: string;
+  raw?: Record<string, any>;
+  [key: string]: any;
 };
 
 type CountryRow = {
@@ -418,6 +423,24 @@ function toProject(row: Record<string, any>): AdminProject {
     contacts: pickNumber(row, ['contacts_count', 'contact_count'], 0),
     saves: pickNumber(row, ['saves_count', 'saved_count'], 0),
     createdAt: pickString(row, ['created_at'], ''),
+    raw: row,
+    opportunityType: pickString(row, ['opportunity_type', 'project_type', 'type', 'listing_type'], ''),
+    descriptionAr: pickString(row, ['description_ar', 'description'], ''),
+    descriptionEn: pickString(row, ['description_en'], ''),
+    roi: pickNumber(row, ['roi', 'expected_roi', 'profit_percentage'], 0),
+    fundingAmount: pickNumber(row, ['funding_amount', 'required_funding', 'investment_amount'], 0),
+    partnershipPercent: pickNumber(row, ['partnership_percent', 'partnership_percentage', 'equity_percentage'], 0),
+    franchiseFee: pickNumber(row, ['franchise_fee'], 0),
+    monthlyProfit: pickNumber(row, ['monthly_profit', 'net_monthly_profit'], 0),
+    employeesCount: pickNumber(row, ['employees_count', 'employees'], 0),
+    yearsOperating: pickNumber(row, ['years_operating', 'operating_years'], 0),
+    paybackPeriod: pickString(row, ['payback_period', 'return_period'], ''),
+    mapLat: row.map_lat ?? row.lat ?? null,
+    mapLng: row.map_lng ?? row.lng ?? null,
+    contactPhone: pickString(row, ['contact_phone', 'phone'], ''),
+    contactWhatsapp: pickString(row, ['contact_whatsapp', 'whatsapp'], ''),
+    phoneCountryCode: pickString(row, ['phone_country_code'], '+968'),
+    whatsappCountryCode: pickString(row, ['whatsapp_country_code'], '+968'),
   };
 }
 
@@ -593,6 +616,7 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState({ saves: 0, contacted: 0, conversations: 0, messages: 0, views: 0 });
   const [projectPublishMode, setProjectPublishMode] = useState<'auto' | 'manual'>('manual');
   const [adminLang, setAdminLang] = useState<'ar' | 'en'>('ar');
+  const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
 
   const [query, setQuery] = useState('');
   const [projectStatus, setProjectStatus] = useState('all');
@@ -1411,11 +1435,32 @@ export default function AdminDashboard() {
     const images = await supabaseBrowser.from('project_images').select('*').eq('project_id', project.id).order('sort_order', { ascending: true });
     setProjectEditModal({ project, form: {
       title_ar: project.title,
+      title_en: project.raw?.title_en || '',
+      description_ar: project.descriptionAr || project.description || '',
+      description_en: project.descriptionEn || '',
       category: project.category,
+      sector: project.raw?.sector || project.category,
+      opportunity_type: project.opportunityType || project.raw?.opportunity_type || project.raw?.project_type || 'sale',
       city: project.city,
+      location: project.raw?.location || project.city,
       price: project.price,
+      funding_amount: project.fundingAmount || project.raw?.funding_amount || '',
+      partnership_percent: project.partnershipPercent || project.raw?.partnership_percent || '',
+      franchise_fee: project.franchiseFee || project.raw?.franchise_fee || '',
+      roi: project.roi || project.raw?.roi || '',
+      monthly_profit: project.monthlyProfit || project.raw?.monthly_profit || '',
+      employees_count: project.employeesCount || project.raw?.employees_count || '',
+      years_operating: project.yearsOperating || project.raw?.years_operating || '',
+      payback_period: project.paybackPeriod || project.raw?.payback_period || '',
+      map_lat: project.mapLat || project.raw?.map_lat || '',
+      map_lng: project.mapLng || project.raw?.map_lng || '',
+      contact_phone: project.contactPhone || project.raw?.contact_phone || '',
+      contact_whatsapp: project.contactWhatsapp || project.raw?.contact_whatsapp || '',
+      phone_country_code: project.phoneCountryCode || '+968',
+      whatsapp_country_code: project.whatsappCountryCode || '+968',
       cover_image_url: project.coverImage,
       status: project.status,
+      moderation_status: project.raw?.moderation_status || project.status,
       is_verified: project.verified,
       verification_status: project.verificationStatus,
     }, gallery: images.error ? [] : (images.data || []), newImageUrl: '' });
@@ -1427,12 +1472,36 @@ export default function AdminDashboard() {
     const payload = {
       title_ar: projectEditModal.form.title_ar,
       title: projectEditModal.form.title_ar,
+      title_en: projectEditModal.form.title_en || null,
+      description_ar: projectEditModal.form.description_ar || null,
+      description: projectEditModal.form.description_ar || projectEditModal.form.description_en || null,
+      description_en: projectEditModal.form.description_en || null,
       category: projectEditModal.form.category,
+      sector: projectEditModal.form.sector || projectEditModal.form.category,
+      opportunity_type: projectEditModal.form.opportunity_type,
+      project_type: projectEditModal.form.opportunity_type,
       city: projectEditModal.form.city,
+      location: projectEditModal.form.location || projectEditModal.form.city,
       price: Number(projectEditModal.form.price || 0),
+      asking_price: Number(projectEditModal.form.price || 0),
+      funding_amount: projectEditModal.form.funding_amount ? Number(projectEditModal.form.funding_amount) : null,
+      partnership_percent: projectEditModal.form.partnership_percent ? Number(projectEditModal.form.partnership_percent) : null,
+      franchise_fee: projectEditModal.form.franchise_fee ? Number(projectEditModal.form.franchise_fee) : null,
+      roi: projectEditModal.form.roi ? Number(projectEditModal.form.roi) : null,
+      monthly_profit: projectEditModal.form.monthly_profit ? Number(projectEditModal.form.monthly_profit) : null,
+      employees_count: projectEditModal.form.employees_count ? Number(projectEditModal.form.employees_count) : null,
+      years_operating: projectEditModal.form.years_operating ? Number(projectEditModal.form.years_operating) : null,
+      payback_period: projectEditModal.form.payback_period || null,
+      map_lat: projectEditModal.form.map_lat ? Number(projectEditModal.form.map_lat) : null,
+      map_lng: projectEditModal.form.map_lng ? Number(projectEditModal.form.map_lng) : null,
+      contact_phone: projectEditModal.form.contact_phone || null,
+      contact_whatsapp: projectEditModal.form.contact_whatsapp || null,
+      phone_country_code: projectEditModal.form.phone_country_code || '+968',
+      whatsapp_country_code: projectEditModal.form.whatsapp_country_code || '+968',
       cover_image_url: projectEditModal.form.cover_image_url,
       cover_image: projectEditModal.form.cover_image_url,
       status: projectEditModal.form.status,
+      moderation_status: projectEditModal.form.moderation_status || projectEditModal.form.status,
       is_verified: projectEditModal.form.is_verified === true,
       verification_status: projectEditModal.form.verification_status || (projectEditModal.form.is_verified ? 'approved' : 'none'),
     };
@@ -1699,8 +1768,10 @@ export default function AdminDashboard() {
   const activeTabLabel = activeTab ? tabLabels[activeTab.key] : adminCopy.dashboard;
 
   return (
-    <main dir={adminDir} className="admin-premium admin-vuexy">
-      <aside className="admin-premium-sidebar admin-vuexy-sidebar">
+    <main dir={adminDir} className={`admin-premium admin-vuexy ${adminMobileMenuOpen ? 'admin-mobile-menu-open' : ''}`}>
+      {adminMobileMenuOpen ? <button type="button" className="admin-mobile-sidebar-backdrop" onClick={() => setAdminMobileMenuOpen(false)} aria-label={adminIsAr ? 'إغلاق القائمة' : 'Close menu'} /> : null}
+      <aside className={`admin-premium-sidebar admin-vuexy-sidebar ${adminMobileMenuOpen ? 'open' : ''}`}>
+        <button type="button" className="admin-mobile-sidebar-close" onClick={() => setAdminMobileMenuOpen(false)} aria-label={adminIsAr ? 'إغلاق القائمة' : 'Close menu'}><X className="h-5 w-5" /></button>
         <div className="admin-vuexy-brand">
           <span className="admin-vuexy-logo">إ</span>
           <div>
@@ -1720,7 +1791,7 @@ export default function AdminDashboard() {
             <div key={group} className="admin-vuexy-nav-group">
               <p>{groupLabels[group] || group}</p>
               {groupTabs.map((item) => (
-                <button key={item.key} onClick={() => setTab(item.key)} className={`admin-vuexy-tab ${tab === item.key ? 'admin-premium-tab-active' : ''}`}>
+                <button key={item.key} onClick={() => { setTab(item.key); setAdminMobileMenuOpen(false); }} className={`admin-vuexy-tab ${tab === item.key ? 'admin-premium-tab-active' : ''}`}>
                   <item.icon className="h-5 w-5" />
                   <span>{tabLabels[item.key] || item.label}</span>
                   {tabBadge(item.key) ? <em>{tabBadge(item.key)}</em> : null}
@@ -1733,6 +1804,7 @@ export default function AdminDashboard() {
 
       <section className="admin-premium-hero admin-vuexy-topbar">
         <div className="admin-vuexy-topbar-inner">
+          <button type="button" className="admin-mobile-menu-button" onClick={() => setAdminMobileMenuOpen(true)} aria-label={adminIsAr ? 'فتح قائمة الإدارة' : 'Open admin menu'}><Menu className="h-5 w-5" /></button>
           <label className="admin-vuexy-search" aria-label={adminCopy.search}>
             <Search className="h-5 w-5" />
             <input
@@ -2015,7 +2087,36 @@ function ProjectEditDialog({ modal, setModal, onSave, onClose, addImage, deleteI
     <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
       <section className="rounded-[1.5rem] bg-slate-50 p-4">
         <h4 className="mb-4 font-black text-slate-950">تعديل بيانات المشروع</h4>
-        <div className="grid gap-3 md:grid-cols-2"><input className="admin-input" value={f.title_ar} onChange={(e) => setF({ title_ar: e.target.value })} placeholder="عنوان المشروع" /><input className="admin-input" value={f.category} onChange={(e) => setF({ category: e.target.value })} placeholder="التصنيف" /><input className="admin-input" value={f.city} onChange={(e) => setF({ city: e.target.value })} placeholder="المدينة" /><input className="admin-input" type="number" value={f.price} onChange={(e) => setF({ price: e.target.value })} placeholder="السعر" /><input className="admin-input md:col-span-2" value={f.cover_image_url} onChange={(e) => setF({ cover_image_url: e.target.value })} placeholder="رابط صورة الغلاف" /><select className="admin-input" value={f.status} onChange={(e) => setF({ status: e.target.value })}><option value="pending">قيد المراجعة</option><option value="approved">منشور</option><option value="revision">يحتاج تعديل</option><option value="rejected">مرفوض</option></select><label className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-black"><input type="checkbox" checked={!!f.is_verified} onChange={(e) => setF({ is_verified: e.target.checked, verification_status: e.target.checked ? 'approved' : 'pending' })} /> مشروع موثق</label></div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <input className="admin-input" value={f.title_ar || ''} onChange={(e) => setF({ title_ar: e.target.value })} placeholder="عنوان المشروع عربي" />
+          <input className="admin-input" value={f.title_en || ''} onChange={(e) => setF({ title_en: e.target.value })} placeholder="Project title EN" />
+          <select className="admin-input" value={f.opportunity_type || 'sale'} onChange={(e) => setF({ opportunity_type: e.target.value })}>
+            <option value="sale">بيع مشروع</option><option value="partnership">شراكة</option><option value="funding">تمويل</option><option value="franchise">امتياز</option>
+          </select>
+          <input className="admin-input" value={f.category || ''} onChange={(e) => setF({ category: e.target.value, sector: e.target.value })} placeholder="القطاع / التصنيف" />
+          <input className="admin-input" value={f.city || ''} onChange={(e) => setF({ city: e.target.value })} placeholder="المدينة" />
+          <input className="admin-input" value={f.location || ''} onChange={(e) => setF({ location: e.target.value })} placeholder="الموقع التفصيلي" />
+          <input className="admin-input" type="number" value={f.price || ''} onChange={(e) => setF({ price: e.target.value })} placeholder="السعر" />
+          <input className="admin-input" type="number" value={f.roi || ''} onChange={(e) => setF({ roi: e.target.value })} placeholder="العائد المتوقع %" />
+          <input className="admin-input" type="number" value={f.funding_amount || ''} onChange={(e) => setF({ funding_amount: e.target.value })} placeholder="مبلغ التمويل" />
+          <input className="admin-input" type="number" value={f.partnership_percent || ''} onChange={(e) => setF({ partnership_percent: e.target.value })} placeholder="نسبة الشراكة %" />
+          <input className="admin-input" type="number" value={f.franchise_fee || ''} onChange={(e) => setF({ franchise_fee: e.target.value })} placeholder="رسوم الامتياز" />
+          <input className="admin-input" type="number" value={f.monthly_profit || ''} onChange={(e) => setF({ monthly_profit: e.target.value })} placeholder="صافي الربح الشهري" />
+          <input className="admin-input" type="number" value={f.employees_count || ''} onChange={(e) => setF({ employees_count: e.target.value })} placeholder="عدد الموظفين" />
+          <input className="admin-input" type="number" value={f.years_operating || ''} onChange={(e) => setF({ years_operating: e.target.value })} placeholder="سنوات التشغيل" />
+          <input className="admin-input" value={f.payback_period || ''} onChange={(e) => setF({ payback_period: e.target.value })} placeholder="مدة الاسترداد" />
+          <input className="admin-input" value={f.phone_country_code || '+968'} onChange={(e) => setF({ phone_country_code: e.target.value })} placeholder="مفتاح الهاتف" />
+          <input className="admin-input" value={f.contact_phone || ''} onChange={(e) => setF({ contact_phone: e.target.value.replace(/[^0-9]/g, '') })} placeholder="رقم الهاتف" inputMode="numeric" />
+          <input className="admin-input" value={f.whatsapp_country_code || '+968'} onChange={(e) => setF({ whatsapp_country_code: e.target.value })} placeholder="مفتاح واتساب" />
+          <input className="admin-input" value={f.contact_whatsapp || ''} onChange={(e) => setF({ contact_whatsapp: e.target.value.replace(/[^0-9]/g, '') })} placeholder="واتساب" inputMode="numeric" />
+          <input className="admin-input" type="number" value={f.map_lat || ''} onChange={(e) => setF({ map_lat: e.target.value })} placeholder="Latitude" />
+          <input className="admin-input" type="number" value={f.map_lng || ''} onChange={(e) => setF({ map_lng: e.target.value })} placeholder="Longitude" />
+          <textarea className="admin-input md:col-span-2 min-h-28" value={f.description_ar || ''} onChange={(e) => setF({ description_ar: e.target.value })} placeholder="وصف المشروع عربي" />
+          <textarea className="admin-input md:col-span-2 min-h-28" value={f.description_en || ''} onChange={(e) => setF({ description_en: e.target.value })} placeholder="Project description EN" />
+          <input className="admin-input md:col-span-2" value={f.cover_image_url || ''} onChange={(e) => setF({ cover_image_url: e.target.value })} placeholder="رابط صورة الغلاف" />
+          <select className="admin-input" value={f.status || 'approved'} onChange={(e) => setF({ status: e.target.value, moderation_status: e.target.value })}><option value="pending">قيد المراجعة</option><option value="approved">منشور</option><option value="revision">يحتاج تعديل</option><option value="rejected">مرفوض</option></select>
+          <label className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-black"><input type="checkbox" checked={!!f.is_verified} onChange={(e) => setF({ is_verified: e.target.checked, verification_status: e.target.checked ? 'approved' : 'pending' })} /> مشروع موثق</label>
+        </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button onClick={onClose} className="rounded-full bg-white px-5 py-3 font-black text-slate-700 ring-1 ring-slate-200">إغلاق</button><button onClick={onSave} className="rounded-full bg-blue-700 px-5 py-3 font-black text-white">حفظ التعديلات</button></div>
       </section>
 

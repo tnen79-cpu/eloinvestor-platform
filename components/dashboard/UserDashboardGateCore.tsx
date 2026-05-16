@@ -767,7 +767,7 @@ function DashboardHeader({ profile, owner, investor, country, lang, setActive }:
       </div>
       <div className="clean-hero-actions">
         <Link href={`/${country}/${lang}`}>الرئيسية</Link>
-        <button type="button" onClick={() => setActive('profile')}>صفحتي الشخصية</button>
+        <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`}>صفحتي الشخصية</Link>
         {owner && <button type="button" onClick={() => setActive('add-project')}>إضافة مشروع</button>}
         {investor && <Link href={`/${country}/${lang}/opportunities`}>فرص الاستثمار</Link>}
       </div>
@@ -1353,7 +1353,7 @@ function MobileDashboardDrawer({ open, setOpen, profile, menu, active, setActive
         </div>
         <nav className="clean-mobile-drawer-menu">
           <Link href={`/${country}/${lang}`} onClick={() => setOpen(false)}><Home size={18} /><span>الرئيسية</span></Link>
-          <button type="button" onClick={() => setActive('profile')} className={active === 'profile' ? 'active' : ''}><UserCircle size={18} /><span>صفحتي الشخصية</span></button>
+          <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`} onClick={() => setOpen(false)}><UserCircle size={18} /><span>صفحتي الشخصية</span></Link>
           {menu.filter((item) => !item.href).map((item, index) => {
             const Icon = item.icon;
             return <button key={`${item.id}-${index}`} type="button" onClick={() => setActive(item.id)} className={active === item.id ? 'active' : ''}><Icon size={18} /><span>{item.label}</span></button>;

@@ -21,6 +21,8 @@ const ROOT_ROUTES = new Set([
   'privacy',
   'terms',
   'promote',
+  'project',
+  'auth',
   'map',
   'compare',
   'payment',
