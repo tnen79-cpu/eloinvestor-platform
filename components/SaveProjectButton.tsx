@@ -9,9 +9,10 @@ type Props = {
   project: Record<string, unknown>;
   lang: string;
   country: string;
+  className?: string;
 };
 
-export function SaveProjectButton({ projectId, project, lang, country }: Props) {
+export function SaveProjectButton({ projectId, project, lang, country, className }: Props) {
   const isAr = lang === 'ar';
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,7 +51,7 @@ export function SaveProjectButton({ projectId, project, lang, country }: Props) 
         setUserId(nextUserId);
       }
       if (!nextUserId) {
-        window.location.href = `/${country}/${lang}/login`; 
+        window.location.href = `/${country}/${lang}/login`;
         return;
       }
 
@@ -78,9 +79,9 @@ export function SaveProjectButton({ projectId, project, lang, country }: Props) 
   }
 
   return (
-    <button onClick={toggle} disabled={loading} className={`mt-3 flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 font-black transition ${saved ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-200' : 'border border-slate-200 bg-white text-slate-800 hover:border-emerald-200 hover:bg-emerald-50'}`}>
-      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={`h-5 w-5 ${saved ? 'fill-current' : ''}`} />}
-      {saved ? (isAr ? 'محفوظ في حسابك' : 'Saved') : (isAr ? 'حفظ المشروع' : 'Save project')}
+    <button onClick={toggle} disabled={loading} className={className || `project-soft-btn-v34 ${saved ? 'is-saved' : ''}`}>
+      {loading ? <Loader2 className="animate-spin" size={16} /> : <Bookmark size={16} className={saved ? 'fill-current' : ''} />}
+      {saved ? (isAr ? 'محفوظ' : 'Saved') : (isAr ? 'حفظ' : 'Save')}
     </button>
   );
 }

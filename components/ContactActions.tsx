@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, MessageCircle, PhoneCall, LockKeyhole } from 'lucide-react';
+import { Loader2, MessageCircle, PhoneCall, LockKeyhole, Send } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { canInvest } from '@/lib/account';
+import { trackPromotionMetric } from '@/lib/promotion-analytics';
 
 type Props = {
   country: string;
@@ -14,16 +15,19 @@ type Props = {
   ownerId?: string;
   whatsapp?: string;
   projectSnapshot?: Record<string, unknown>;
+  showInvest?: boolean;
+  showWhatsapp?: boolean;
+  isSponsored?: boolean;
 };
 
 function cleanPhone(phone?: string) {
   return String(phone || '').replace(/[^0-9+]/g, '').replace(/^00/, '+');
 }
 
-export function ContactActions({ country, lang, projectId, projectTitle, ownerId, whatsapp, projectSnapshot }: Props) {
+export function ContactActions({ country, lang, projectId, projectTitle, ownerId, whatsapp, projectSnapshot, showWhatsapp = true, isSponsored = false }: Props) {
   const router = useRouter();
   const isAr = lang === 'ar';
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<'chat' | 'whatsapp' | 'call' | ''>('');
   const [error, setError] = useState('');
 
   async function getCurrentUser() {
@@ -31,15 +35,15 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
     return data.user;
   }
 
-  async function startConversation(openWhatsapp = false) {
+  async function ensureConversation(action: 'chat' | 'whatsapp' | 'call') {
     setError('');
-    setLoading(true);
+    setLoading(action);
 
     try {
       const user = await getCurrentUser();
       if (!user) {
         router.push(`/${country}/${lang}/login?next=/${country}/${lang}/project/${encodeURIComponent(projectId)}`);
-        return;
+        return null;
       }
 
       let accountType = user.user_metadata?.account_type || 'investor';
@@ -58,17 +62,29 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
 
       if (!canInvest(accountType, role)) {
         setError(isAr ? 'التواصل مع المشاريع متاح لحساب المستثمر أو حساب الاثنين معًا.' : 'Contacting projects is available for investor or combined accounts.');
-        return;
+        return null;
       }
 
       if (ownerId && user.id === ownerId) {
         setError(isAr ? 'لا يمكنك التواصل مع مشروعك نفسه.' : 'You cannot contact your own project.');
-        return;
+        return null;
       }
 
       if (!ownerId) {
         setError(isAr ? 'لا يوجد صاحب مشروع مرتبط بهذا المشروع.' : 'This project has no owner attached.');
-        return;
+        return null;
+      }
+
+      let ownerWelcomeMessage = '';
+      try {
+        const { data: ownerProfile } = await supabaseBrowser
+          .from('users')
+          .select('auto_welcome_message,welcome_message,name')
+          .eq('auth_id', ownerId)
+          .maybeSingle();
+        ownerWelcomeMessage = String((ownerProfile as any)?.auto_welcome_message || (ownerProfile as any)?.welcome_message || '').trim();
+      } catch (welcomeLookupError) {
+        console.warn('Owner welcome message lookup skipped:', welcomeLookupError);
       }
 
       const baseConversationPayload = {
@@ -84,7 +100,7 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
       };
 
       async function upsertConversationWithFallback(payload: Record<string, unknown>, conflict = 'project_id,buyer_id') {
-        let current = { ...payload };
+        const current = { ...payload };
         for (let attempt = 0; attempt < 8; attempt += 1) {
           const { data, error } = await supabaseBrowser
             .from('conversations')
@@ -121,6 +137,15 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
           read_at: null,
         });
         if (messageError) throw messageError;
+        if (ownerWelcomeMessage) {
+          const { error: welcomeError } = await supabaseBrowser.from('messages').insert({
+            conversation_id: conversation.id,
+            sender_id: ownerId,
+            body: ownerWelcomeMessage,
+            read_at: null,
+          });
+          if (welcomeError) console.warn('Auto welcome message skipped:', welcomeError.message);
+        }
       }
 
       try {
@@ -134,52 +159,65 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
         console.warn('Investor contact log skipped:', contactLogError);
       }
 
-      // Increment contact count if the RPC exists. Do not block chat/contact if it is missing.
-      const { error: counterError } = await supabaseBrowser.rpc('increment_project_contact_count', {
-        p_project_id: projectId,
-      });
+      const { error: counterError } = await supabaseBrowser.rpc('increment_project_contact_count', { p_project_id: projectId });
       if (counterError) console.warn('Contact counter skipped:', counterError.message);
 
-      if (openWhatsapp) {
-        const phone = cleanPhone(whatsapp);
-        if (!phone) {
-          router.push(`/${country}/${lang}/messages?conversation=${conversation.id}`);
-          return;
-        }
-        const text = encodeURIComponent(isAr ? `مرحبًا، أنا مهتم بالمشروع: ${projectTitle}` : `Hello, I am interested in: ${projectTitle}`);
-        window.open(`https://wa.me/${phone.replace('+', '')}?text=${text}`, '_blank', 'noopener,noreferrer');
-      }
+      if (isSponsored) await trackPromotionMetric(projectId, 'contact');
 
-      router.push(`/${country}/${lang}/messages?conversation=${conversation.id}`);
+      return conversation;
     } catch (err: any) {
       setError(err?.message || (isAr ? 'حدث خطأ أثناء فتح التواصل.' : 'Could not start contact.'));
+      return null;
     } finally {
-      setLoading(false);
+      setLoading('');
     }
   }
 
+  async function openChat() {
+    const conversation = await ensureConversation('chat');
+    if (conversation?.id) router.push(`/${country}/${lang}/messages?conversation=${conversation.id}`);
+  }
+
+  async function openWhatsapp() {
+    if (!showWhatsapp) return;
+    const conversation = await ensureConversation('whatsapp');
+    if (!conversation?.id) return;
+    const phone = cleanPhone(whatsapp);
+    if (!phone) {
+      setError(isAr ? 'رقم واتساب غير متاح لهذا المشروع.' : 'WhatsApp number is unavailable for this project.');
+      return;
+    }
+    const text = encodeURIComponent(isAr ? `مرحبًا، أنا مهتم بالمشروع: ${projectTitle}` : `Hello, I am interested in: ${projectTitle}`);
+    window.open(`https://wa.me/${phone.replace('+', '')}?text=${text}`, '_blank', 'noopener,noreferrer');
+  }
+
+  async function openCall() {
+    const conversation = await ensureConversation('call');
+    if (!conversation?.id) return;
+    const phone = cleanPhone(whatsapp);
+    if (!phone) {
+      setError(isAr ? 'رقم الاتصال غير متاح لهذا المشروع.' : 'Phone number is unavailable for this project.');
+      return;
+    }
+    window.location.href = `tel:${phone}`;
+  }
+
   return (
-    <div className="space-y-3">
-      {error ? <div className="rounded-2xl bg-red-50 p-4 text-sm font-black text-red-700 ring-1 ring-red-100">{error}</div> : null}
-      <button
-        onClick={() => startConversation(false)}
-        disabled={loading}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-4 font-black text-white shadow-lg shadow-emerald-900/10 disabled:opacity-60"
-      >
-        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
-        {isAr ? 'بدء محادثة داخلية' : 'Start internal chat'}
+    <div className="project-contact-actions-v34">
+      {error ? <div className="project-contact-error-v34">{error}</div> : null}
+      <button type="button" onClick={openWhatsapp} disabled={Boolean(loading) || !showWhatsapp} className="project-contact-whatsapp-v34">
+        {loading === 'whatsapp' ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+        {isAr ? 'واتساب' : 'WhatsApp'}
       </button>
-      <button
-        onClick={() => startConversation(true)}
-        disabled={loading}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 font-black text-emerald-900 disabled:opacity-60"
-      >
-        {whatsapp ? <PhoneCall className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
-        {whatsapp ? (isAr ? 'فتح واتساب' : 'Open WhatsApp') : (isAr ? 'واتساب غير متاح' : 'WhatsApp unavailable')}
+      <button type="button" onClick={openCall} disabled={Boolean(loading)} className="project-contact-outline-v34">
+        {loading === 'call' ? <Loader2 className="animate-spin" size={18} /> : whatsapp ? <PhoneCall size={18} /> : <LockKeyhole size={18} />}
+        {isAr ? 'اتصال' : 'Call'}
       </button>
-      <p className="text-center text-xs font-bold leading-6 text-slate-500">
-        {isAr ? 'بيانات التواصل لا تظهر إلا بعد تسجيل الدخول ويتم حفظ طلب التواصل لحماية الطرفين.' : 'Contact is gated behind sign-in and logged to protect both parties.'}
-      </p>
+      <button type="button" onClick={openChat} disabled={Boolean(loading)} className="project-contact-outline-v34">
+        {loading === 'chat' ? <Loader2 className="animate-spin" size={18} /> : <MessageCircle size={18} />}
+        {isAr ? 'دردشة' : 'Chat'}
+      </button>
+      <p>{isAr ? 'بيانات التواصل متاحة للمستخدمين المسجلين فقط ويتم حفظ الطلب لحماية الطرفين.' : 'Contact is available for signed-in users and logged to protect both sides.'}</p>
     </div>
   );
 }

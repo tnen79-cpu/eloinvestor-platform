@@ -13,7 +13,7 @@ export function PublicSlider({ slides = [], lang, enabled = true, className = ''
         {items.map((slide) => {
           const title = isAr ? (slide.titleAr || slide.titleEn) : (slide.titleEn || slide.titleAr);
           const subtitle = isAr ? (slide.subtitleAr || slide.subtitleEn) : (slide.subtitleEn || slide.subtitleAr);
-          const button = isAr ? (slide.buttonTextAr || slide.buttonTextEn || 'عرض التفاصيل') : (slide.buttonTextEn || slide.buttonTextAr || 'View details');
+          const button = isAr ? (slide.buttonTextAr || slide.buttonTextEn || '') : (slide.buttonTextEn || slide.buttonTextAr || '');
           const href = slide.buttonUrl || '#';
           return (
             <article key={slide.id || title} className="public-slide" style={{ backgroundImage: slide.imageUrl ? `linear-gradient(90deg, rgba(0,48,33,.82), rgba(0,48,33,.25)), url(${slide.imageUrl})` : undefined }}>
@@ -21,7 +21,7 @@ export function PublicSlider({ slides = [], lang, enabled = true, className = ''
                 <span>{isAr ? 'إعلان مميز' : 'Featured'}</span>
                 <h2>{title}</h2>
                 {subtitle ? <p>{subtitle}</p> : null}
-                {href.startsWith('/') ? <Link href={href}>{button}</Link> : <a href={href} target={href === '#' ? undefined : '_blank'} rel="noreferrer">{button}</a>}
+                {button && href !== '#' ? (href.startsWith('/') ? <Link href={href}>{button}</Link> : <a href={href} target="_blank" rel="noreferrer">{button}</a>) : null}
               </div>
             </article>
           );

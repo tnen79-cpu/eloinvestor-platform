@@ -2,28 +2,47 @@
 
 import { useEffect } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { trackPromotionMetric } from '@/lib/promotion-analytics';
 
-export function ProjectViewTracker({ projectId }: { projectId?: string }) {
+export function ProjectViewTracker({ projectId, isSponsored = false }: { projectId?: string; isSponsored?: boolean }) {
   useEffect(() => {
     if (!projectId) return;
-    const key = `elo-view-${projectId}`;
-    if (typeof window !== 'undefined' && sessionStorage.getItem(key)) return;
-    if (typeof window !== 'undefined') sessionStorage.setItem(key, '1');
 
-    async function track() {
+    const projectViewKey = `elo-view-${projectId}`;
+    const promotionViewKey = `elo-promo-view-${projectId}`;
+
+    async function trackPromotionView() {
+      if (!isSponsored) return;
+      if (typeof window !== 'undefined' && sessionStorage.getItem(promotionViewKey)) return;
       try {
-        const { data } = await supabaseBrowser.auth.getUser();
-        const viewerId = data.user?.id || null;
-        await supabaseBrowser.from('project_views_log').insert({ project_id: projectId, viewer_id: viewerId });
-        const { data: current } = await supabaseBrowser.from('projects').select('views_count,views').eq('id', projectId).maybeSingle();
-        const next = Number((current as any)?.views_count ?? (current as any)?.views ?? 0) + 1;
-        await supabaseBrowser.from('projects').update({ views_count: next, views: next }).eq('id', projectId);
+        await trackPromotionMetric(projectId, 'view');
+        if (typeof window !== 'undefined') sessionStorage.setItem(promotionViewKey, '1');
+      } catch (error) {
+        console.warn('Promotion view tracking skipped:', error);
+      }
+    }
+
+    async function trackProjectView() {
+      if (typeof window !== 'undefined' && sessionStorage.getItem(projectViewKey)) return;
+      try {
+        const { data: sessionData } = await supabaseBrowser.auth.getSession();
+        await fetch('/api/projects/view', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ projectId }),
+        });
+        if (typeof window !== 'undefined') sessionStorage.setItem(projectViewKey, '1');
       } catch (error) {
         console.warn('Project view tracking skipped:', error);
       }
     }
-    void track();
-  }, [projectId]);
+
+    void trackPromotionView();
+    void trackProjectView();
+  }, [projectId, isSponsored]);
 
   return null;
 }

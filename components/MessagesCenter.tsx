@@ -173,7 +173,7 @@ export function MessagesCenter({ country, lang }: { country: string; lang: strin
       <div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
         <ShieldAlert className="mx-auto h-10 w-10 text-amber-600" />
         <h1 className="mt-4 text-2xl font-black text-slate-950">{isAr ? 'سجّل الدخول لعرض المحادثات' : 'Sign in to view messages'}</h1>
-        <Link href={`/${country}/${lang}/login`} className="mt-6 inline-flex rounded-2xl bg-emerald-700 px-6 py-4 font-black text-white">{isAr ? 'تسجيل الدخول' : 'Login'}</Link>
+        <Link href={`/${country}/${lang}/login`} className="mt-6 inline-flex rounded-2xl bg-blue-700 px-6 py-4 font-black text-white">{isAr ? 'تسجيل الدخول' : 'Login'}</Link>
       </div>
     );
   }
@@ -181,7 +181,7 @@ export function MessagesCenter({ country, lang }: { country: string; lang: strin
   return (
     <div className="space-y-6">
       <div className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-sm font-black text-emerald-700">{isAr ? 'مركز التواصل' : 'Communication center'}</p>
+        <p className="text-sm font-black text-blue-700">{isAr ? 'مركز التواصل' : 'Communication center'}</p>
         <h1 className="mt-2 text-4xl font-black text-slate-950">{isAr ? 'المحادثات وطلبات التواصل' : 'Messages & contact requests'}</h1>
         <p className="mt-3 max-w-2xl text-sm font-bold leading-7 text-slate-500">{isAr ? 'كل محادثة مرتبطة بمشروع محدد ويتم حفظ الرسائل لحماية صاحب المشروع والمستثمر.' : 'Each conversation is attached to a project and messages are logged for trust and safety.'}</p>
       </div>
@@ -192,17 +192,17 @@ export function MessagesCenter({ country, lang }: { country: string; lang: strin
         <aside className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
           <div className="relative mb-4">
             <Search className="absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={isAr ? 'بحث في المحادثات' : 'Search messages'} className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pe-4 ps-11 text-sm font-bold outline-none focus:border-emerald-500" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={isAr ? 'بحث في المحادثات' : 'Search messages'} className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pe-4 ps-11 text-sm font-bold outline-none focus:border-blue-500" />
           </div>
 
           {loading ? (
-            <div className="grid place-items-center rounded-2xl bg-slate-50 p-10"><Loader2 className="h-6 w-6 animate-spin text-emerald-700" /></div>
+            <div className="grid place-items-center rounded-2xl bg-slate-50 p-10"><Loader2 className="h-6 w-6 animate-spin text-blue-700" /></div>
           ) : filteredConversations.length ? (
             <div className="space-y-2">
               {filteredConversations.map((item) => {
                 const active = item.id === activeId;
                 return (
-                  <button key={item.id} onClick={() => setActiveId(item.id)} className={`w-full rounded-2xl p-4 text-start transition ${active ? 'bg-emerald-700 text-white' : 'bg-slate-50 text-slate-900 hover:bg-emerald-50'}`}>
+                  <button key={item.id} onClick={() => setActiveId(item.id)} className={`w-full rounded-2xl p-4 text-start transition ${active ? 'bg-blue-700 text-white' : 'bg-slate-50 text-slate-900 hover:bg-blue-50'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <p className="truncate font-black">{pickTitle(item.project, lang)}</p>
                       <span className={`text-[10px] font-black ${active ? 'text-white/70' : 'text-slate-400'}`}>{timeAgo(item.last_message_at, lang)}</span>
@@ -225,10 +225,10 @@ export function MessagesCenter({ country, lang }: { country: string; lang: strin
             <>
               <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-5">
                 <div>
-                  <p className="text-xs font-black text-emerald-700">{isAr ? 'محادثة مشروع' : 'Project conversation'}</p>
+                  <p className="text-xs font-black text-blue-700">{isAr ? 'محادثة مشروع' : 'Project conversation'}</p>
                   <h2 className="mt-1 text-xl font-black text-slate-950">{pickTitle(activeConversation.project, lang)}</h2>
                 </div>
-                <Link href={`/${country}/${lang}/project/${activeConversation.project_id}`} className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-700 hover:bg-emerald-50">{isAr ? 'فتح المشروع' : 'Open project'}</Link>
+                <Link href={`/${country}/${lang}/project/${activeConversation.project_id}`} className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-700 hover:bg-blue-50">{isAr ? 'فتح المشروع' : 'Open project'}</Link>
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-5">
@@ -236,7 +236,7 @@ export function MessagesCenter({ country, lang }: { country: string; lang: strin
                   const mine = msg.sender_id === userId;
                   return (
                     <div key={msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[78%] rounded-3xl px-5 py-3 ${mine ? 'rounded-br-md bg-emerald-700 text-white' : 'rounded-bl-md bg-slate-100 text-slate-900'}`}>
+                      <div className={`max-w-[78%] rounded-3xl px-5 py-3 ${mine ? 'rounded-br-md bg-blue-700 text-white' : 'rounded-bl-md bg-slate-100 text-slate-900'}`}>
                         <p className="whitespace-pre-wrap text-sm font-bold leading-7">{msg.body}</p>
                         <p className={`mt-2 text-[10px] font-bold ${mine ? 'text-white/60' : 'text-slate-400'}`}>{timeAgo(msg.created_at, lang)}</p>
                       </div>
@@ -260,9 +260,9 @@ export function MessagesCenter({ country, lang }: { country: string; lang: strin
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                     placeholder={isAr ? 'اكتب رسالتك...' : 'Write a message...'}
-                    className="h-14 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-5 font-bold outline-none focus:border-emerald-500"
+                    className="h-14 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-5 font-bold outline-none focus:border-blue-500"
                   />
-                  <button onClick={sendMessage} disabled={sending || !message.trim()} className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-700 text-white disabled:opacity-50">
+                  <button onClick={sendMessage} disabled={sending || !message.trim()} className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-700 text-white disabled:opacity-50">
                     {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
                   </button>
                 </div>

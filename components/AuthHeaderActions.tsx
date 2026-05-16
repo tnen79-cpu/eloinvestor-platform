@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, LayoutDashboard, PlusCircle, ShieldCheck, UserRound, BadgeCheck, MessageCircle } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { accountTypeLabel, canAddProjects, isAdminRole } from '@/lib/account';
+import { useI18n } from '@/components/I18nProvider';
 
 type HeaderUser = {
   id: string;
@@ -23,6 +24,7 @@ function getUserName(user: any) {
 export function AuthHeaderActions({ country, lang, labels }: { country: string; lang: string; labels: { login: string; register: string } }) {
   const router = useRouter();
   const isAr = lang === 'ar';
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<HeaderUser | null>(null);
@@ -102,8 +104,8 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
   if (!user) {
     return (
       <>
-        <Link href={`/${country}/${lang}/login`} className="hidden rounded-full px-4 py-3 text-sm font-black text-emerald-900 sm:block">{labels.login}</Link>
-        <Link href={`/${country}/${lang}/register`} className="hidden rounded-full bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-emerald-900/10 sm:block">{labels.register}</Link>
+        <Link href={`/${country}/${lang}/login`} className="hidden rounded-full px-4 py-3 text-sm font-black text-blue-900 sm:block">{labels.login}</Link>
+        <Link href={`/${country}/${lang}/register`} className="hidden rounded-full bg-blue-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/10 sm:block">{labels.register}</Link>
       </>
     );
   }
@@ -113,40 +115,43 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-900 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
+        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-50"
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-700 text-white"><UserRound size={16} /></span>
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-blue-700 text-white"><UserRound size={16} /></span>
         <span className="hidden max-w-28 truncate sm:inline">{user.name}</span>
       </button>
 
       {open && (
-        <div className="absolute end-0 top-full mt-3 w-64 overflow-hidden rounded-3xl border border-slate-200 bg-white p-2 text-sm shadow-2xl">
+        <div className="auth-user-menu absolute end-0 top-full mt-3 w-72 overflow-hidden rounded-3xl border border-slate-200 bg-white p-2 text-sm shadow-2xl">
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="font-black text-slate-950">{user.name}</p>
             <p className="mt-1 truncate text-xs font-bold text-slate-500">{user.email}</p>
-            <p className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-800">{accountTypeLabel(user.accountType, lang)}</p>
+            <p className="mt-2 inline-flex rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black text-blue-800">{accountTypeLabel(user.accountType, lang)}</p>
           </div>
-          <Link href={dashboardHref} className="flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-emerald-50">
-            <LayoutDashboard size={17} /> {isAr ? 'لوحة التحكم' : 'Dashboard'}
+          <Link href={dashboardHref} className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+            <LayoutDashboard size={17} /> {t('common', 'dashboard', isAr ? 'لوحة التحكم' : 'Dashboard')}
+          </Link>
+          <Link href={`/${country}/${lang}/profile/${encodeURIComponent(user.id)}`} className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+            <UserRound size={17} /> {t('auth', 'public_profile', isAr ? 'صفحتي العامة' : 'Public profile')}
           </Link>
           {canAddProjects(user.accountType, user.role) && (
-            <Link href={`/${country}/${lang}/add-project`} className="flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-emerald-50">
-              <PlusCircle size={17} /> {isAr ? 'إضافة مشروع' : 'Add Project'}
+            <Link href={`/${country}/${lang}/add-project`} className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+              <PlusCircle size={17} /> {t('common', 'add_project', isAr ? 'إضافة مشروع' : 'Add Project')}
             </Link>
           )}
-          <Link href={`/${country}/${lang}/verification`} className="flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-emerald-50">
-            <BadgeCheck size={17} /> {isAr ? 'التوثيق' : 'Verification'}
+          <Link href={`/${country}/${lang}/verification`} className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+            <BadgeCheck size={17} /> {t('auth', 'verification', isAr ? 'التوثيق' : 'Verification')}
           </Link>
-          <Link href={`/${country}/${lang}/messages`} className="flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-emerald-50">
-            <MessageCircle size={17} /> {isAr ? 'المحادثات' : 'Messages'}
+          <Link href={`/${country}/${lang}/messages`} className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+            <MessageCircle size={17} /> {t('auth', 'messages', isAr ? 'المحادثات' : 'Messages')}
           </Link>
           {isAdminRole(user.role) && (
-            <Link href="/admin" className="flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-emerald-50">
-              <ShieldCheck size={17} /> {isAr ? 'لوحة الإدارة' : 'Admin'}
+            <Link href="/admin" className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+              <ShieldCheck size={17} /> {t('auth', 'admin', isAr ? 'لوحة الإدارة' : 'Admin')}
             </Link>
           )}
-          <button onClick={logout} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start font-bold text-red-600 hover:bg-red-50">
-            <LogOut size={17} /> {isAr ? 'تسجيل الخروج' : 'Logout'}
+          <button onClick={logout} className="auth-user-menu-item danger flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start font-bold text-red-600 hover:bg-red-50">
+            <LogOut size={17} /> {t('auth', 'logout', isAr ? 'تسجيل الخروج' : 'Logout')}
           </button>
         </div>
       )}

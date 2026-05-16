@@ -9,6 +9,7 @@ export type SearchFilters = {
   minRoi?: number;
   verifiedOnly?: boolean;
   premiumOnly?: boolean;
+  opportunityType?: string;
   sort?: string;
 };
 
@@ -86,6 +87,7 @@ export function filterProjects(projects: UiProject[], filters: SearchFilters) {
     const text = `${project.titleAr} ${project.titleEn} ${project.summaryAr} ${project.summaryEn}`.toLowerCase();
     if (q && !text.includes(q)) return false;
     if (filters.sector && filters.sector !== 'all' && project.category !== filters.sector) return false;
+    if (filters.opportunityType && filters.opportunityType !== 'all' && project.opportunityType && project.opportunityType !== filters.opportunityType) return false;
     if (filters.city && filters.city !== 'all') {
       const cityText = `${project.cityAr} ${project.cityEn} ${project.governorateAr || ''} ${project.governorateEn || ''}`.toLowerCase();
       if (!cityText.includes(String(filters.city).toLowerCase())) return false;
@@ -122,6 +124,7 @@ export function parseSearchParams(params: Record<string, string | string[] | und
     minRoi: n(val('minRoi'), 0) || undefined,
     verifiedOnly: val('verified') === '1',
     premiumOnly: val('premium') === '1',
+    opportunityType: val('opportunityType'),
     sort: val('sort') || 'smart',
   };
 }

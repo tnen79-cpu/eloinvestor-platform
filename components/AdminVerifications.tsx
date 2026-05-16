@@ -24,7 +24,7 @@ type VerificationRow = {
 
 function statusMeta(status: string) {
   const s = String(status || 'pending').toLowerCase();
-  if (s === 'approved') return { label: 'مقبول', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-100', icon: CheckCircle2 };
+  if (s === 'approved') return { label: 'مقبول', cls: 'bg-blue-50 text-blue-700 ring-blue-100', icon: CheckCircle2 };
   if (s === 'rejected') return { label: 'مرفوض', cls: 'bg-red-50 text-red-700 ring-red-100', icon: XCircle };
   if (['revision', 'needs_revision'].includes(s)) return { label: 'يحتاج تعديل', cls: 'bg-orange-50 text-orange-700 ring-orange-100', icon: AlertCircle };
   return { label: 'قيد المراجعة', cls: 'bg-amber-50 text-amber-700 ring-amber-100', icon: Clock3 };
@@ -110,14 +110,14 @@ export function AdminVerifications() {
     await load();
   }
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-emerald-700" /></div>;
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-blue-700" /></div>;
   if (accessDenied) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white" dir="rtl">
         <div className="max-w-lg rounded-[2rem] bg-white/10 p-8 text-center backdrop-blur">
           <LockKeyhole className="mx-auto h-12 w-12 text-amber-300" />
           <h1 className="mt-4 text-3xl font-black">صلاحية الإدارة مطلوبة</h1>
-          <Link href="/om/ar/login" className="mt-6 inline-flex rounded-full bg-emerald-500 px-6 py-3 font-black text-slate-950">تسجيل الدخول</Link>
+          <Link href="/om/ar/login" className="mt-6 inline-flex rounded-full bg-blue-500 px-6 py-3 font-black text-slate-950">تسجيل الدخول</Link>
         </div>
       </div>
     );
@@ -128,7 +128,7 @@ export function AdminVerifications() {
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-black text-emerald-600">EloInvestor Admin</p>
+            <p className="text-sm font-black text-blue-600">EloInvestor Admin</p>
             <h1 className="mt-1 text-3xl font-black md:text-4xl">طلبات التوثيق</h1>
             <p className="mt-2 text-sm font-bold text-slate-500">مراجعة توثيق المشاريع والمستثمرين.</p>
           </div>
@@ -146,9 +146,9 @@ export function AdminVerifications() {
         <div className="mb-5 flex flex-col gap-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث في الطلبات..." className="h-12 w-full rounded-full border border-slate-200 bg-white pr-10 pl-4 text-sm font-bold outline-none focus:border-emerald-500" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث في الطلبات..." className="h-12 w-full rounded-full border border-slate-200 bg-white pr-10 pl-4 text-sm font-bold outline-none focus:border-blue-500" />
           </div>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-12 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-emerald-500">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-12 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-blue-500">
             <option value="all">كل الحالات</option>
             <option value="pending">قيد المراجعة</option>
             <option value="approved">مقبول</option>
@@ -172,7 +172,7 @@ export function AdminVerifications() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {item.document_url ? <a href={item.document_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"><FileText className="h-4 w-4" /> الملف</a> : null}
-                    <button onClick={() => updateRequest(item, 'approved')} className="rounded-full bg-emerald-600 px-4 py-3 text-sm font-black text-white">قبول</button>
+                    <button onClick={() => updateRequest(item, 'approved')} className="rounded-full bg-blue-600 px-4 py-3 text-sm font-black text-white">قبول</button>
                     <button onClick={() => updateRequest(item, 'revision')} className="rounded-full bg-amber-100 px-4 py-3 text-sm font-black text-amber-800">طلب تعديل</button>
                     <button onClick={() => updateRequest(item, 'rejected')} className="rounded-full bg-red-100 px-4 py-3 text-sm font-black text-red-700">رفض</button>
                   </div>

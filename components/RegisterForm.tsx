@@ -1,26 +1,61 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Chrome, Smartphone } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { useI18n } from '@/components/I18nProvider';
+
+type Step = 'phone' | 'otp';
+
+const COUNTRY_CODES = [
+  { code: '+968', labelAr: 'عُمان', labelEn: 'Oman' },
+  { code: '+971', labelAr: 'الإمارات', labelEn: 'UAE' },
+  { code: '+966', labelAr: 'السعودية', labelEn: 'Saudi Arabia' },
+  { code: '+974', labelAr: 'قطر', labelEn: 'Qatar' },
+  { code: '+973', labelAr: 'البحرين', labelEn: 'Bahrain' },
+  { code: '+965', labelAr: 'الكويت', labelEn: 'Kuwait' },
+  { code: '+962', labelAr: 'الأردن', labelEn: 'Jordan' },
+  { code: '+20', labelAr: 'مصر', labelEn: 'Egypt' },
+  { code: '+963', labelAr: 'سوريا', labelEn: 'Syria' },
+  { code: '+964', labelAr: 'العراق', labelEn: 'Iraq' },
+];
+
+function digitsOnly(value: string) {
+  return value.replace(/[^0-9]/g, '');
+}
+
+function normalizePhone(countryCode: string, phone: string) {
+  const codeDigits = digitsOnly(countryCode);
+  let phoneDigits = digitsOnly(phone);
+  phoneDigits = phoneDigits.replace(/^0+/, '');
+  if (phoneDigits.startsWith(codeDigits)) return `+${phoneDigits}`;
+  return `+${codeDigits}${phoneDigits}`;
+}
 
 export function RegisterForm({ country, lang }: { country: string; lang: string }) {
   const isAr = lang === 'ar';
+  const { t } = useI18n();
   const router = useRouter();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [countryCode, setCountryCode] = useState('+968');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [accountType, setAccountType] = useState('investor');
+  const [step, setStep] = useState<Step>('phone');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
   async function ensureProfile(userId: string) {
     try {
       await supabaseBrowser.from('users').upsert({
         auth_id: userId,
         name,
-        email,
+        phone: fullPhone,
+        phone_country_code: countryCode,
         account_type: accountType,
         role: 'user',
         plan: 'free',
@@ -31,18 +66,39 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
     }
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function sendOtp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setMessage('');
 
-    const { data, error } = await supabaseBrowser.auth.signUp({
-      email,
-      password,
+    const { error } = await supabaseBrowser.auth.signInWithOtp({
+      phone: fullPhone,
       options: {
-        emailRedirectTo: `${window.location.origin}/${country}/${lang}/dashboard`,
-        data: { name, account_type: accountType, role: 'user' },
+        shouldCreateUser: true,
+        data: { name, account_type: accountType, role: 'user', phone: fullPhone, phone_country_code: countryCode },
       },
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setStep('otp');
+    setMessage(isAr ? `تم إرسال رمز التحقق إلى ${fullPhone}` : `Verification code sent to ${fullPhone}`);
+  }
+
+  async function verifyOtp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    const { data, error } = await supabaseBrowser.auth.verifyOtp({
+      phone: fullPhone,
+      token: digitsOnly(otp),
+      type: 'sms',
     });
 
     if (error) {
@@ -53,31 +109,82 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
 
     if (data.user) await ensureProfile(data.user.id);
     setLoading(false);
+    router.push(`/${country}/${lang}/dashboard`);
+    router.refresh();
+  }
 
-    if (data.session) {
-      router.push(`/${country}/${lang}/dashboard`);
-      router.refresh();
-      return;
+  async function registerWithGoogle() {
+    setLoading(true);
+    setMessage('');
+    const redirectTo = `${window.location.origin}/${country}/${lang}/auth/callback?next=/${country}/${lang}/dashboard&account_type=${accountType}`;
+    const { error } = await supabaseBrowser.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) {
+      setLoading(false);
+      setMessage(error.message);
     }
-
-    setMessage(isAr ? 'تم إنشاء الحساب. افحص بريدك لتأكيد الحساب.' : 'Account created. Check your email to confirm it.');
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-      <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10" placeholder={isAr ? 'الاسم الكامل' : 'Full name'} required />
-      <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10" placeholder={isAr ? 'البريد الإلكتروني' : 'Email'} type="email" required />
-      <input value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10" placeholder={isAr ? 'كلمة المرور' : 'Password'} type="password" minLength={6} required />
-      <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10">
-        <option value="investor">{isAr ? 'مستثمر' : 'Investor'}</option>
-        <option value="owner">{isAr ? 'صاحب مشروع' : 'Project owner'}</option>
-        <option value="both">{isAr ? 'مستثمر وصاحب مشروع' : 'Investor and owner'}</option>
-      </select>
-      {!!message && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{message}</p>}
-      <button disabled={loading} className="w-full rounded-2xl bg-emerald-700 px-6 py-4 font-black text-white shadow-lg shadow-emerald-900/10 disabled:cursor-not-allowed disabled:opacity-60">
-        {loading ? (isAr ? 'جاري إنشاء الحساب...' : 'Creating account...') : (isAr ? 'إنشاء حساب' : 'Create Account')}
+    <div className="mt-8 space-y-4">
+      <div className="space-y-4">
+        <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={t('auth', 'full_name', isAr ? 'الاسم الكامل' : 'Full name')} required={step === 'phone'} />
+        <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10">
+          <option value="investor">{t('auth', 'investor', isAr ? 'مستثمر' : 'Investor')}</option>
+          <option value="owner">{t('auth', 'owner', isAr ? 'صاحب مشروع' : 'Project owner')}</option>
+          <option value="both">{t('auth', 'both', isAr ? 'مستثمر وصاحب مشروع' : 'Investor and owner')}</option>
+        </select>
+      </div>
+
+      <button type="button" onClick={registerWithGoogle} disabled={loading || !name.trim()} className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 font-black text-slate-900 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
+        <Chrome size={21} />
+        {isAr ? 'إنشاء/دخول بواسطة Google' : 'Continue with Google'}
       </button>
-      <Link href={`/${country}/${lang}/login`} className="block text-center font-bold text-emerald-700">{isAr ? 'عندي حساب بالفعل' : 'I already have an account'}</Link>
-    </form>
+
+      <div className="flex items-center gap-3 text-xs font-black text-slate-400">
+        <span className="h-px flex-1 bg-slate-200" />
+        {isAr ? 'أو برقم الهاتف' : 'or with phone'}
+        <span className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      {step === 'phone' ? (
+        <form onSubmit={sendOtp} className="space-y-4">
+          <div className="grid grid-cols-[130px_1fr] gap-3">
+            <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" aria-label={isAr ? 'مفتاح الدولة' : 'Country code'}>
+              {COUNTRY_CODES.map((item) => (
+                <option key={item.code} value={item.code}>{item.code} · {isAr ? item.labelAr : item.labelEn}</option>
+              ))}
+            </select>
+            <input value={phone} onChange={(e) => setPhone(digitsOnly(e.target.value))} inputMode="numeric" pattern="[0-9]*" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={isAr ? 'رقم الهاتف' : 'Phone number'} required />
+          </div>
+          {!!message && <p className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">{message}</p>}
+          <button disabled={loading || !name.trim() || phone.length < 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
+            <Smartphone size={19} />
+            {loading ? (isAr ? 'جاري الإرسال...' : 'Sending...') : (isAr ? 'إرسال رمز التحقق' : 'Send verification code')}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={verifyOtp} className="space-y-4">
+          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+            {isAr ? 'أدخل الرمز المرسل إلى' : 'Enter the code sent to'} <span dir="ltr" className="text-blue-700">{fullPhone}</span>
+          </div>
+          <input value={otp} onChange={(e) => setOtp(digitsOnly(e.target.value).slice(0, 6))} inputMode="numeric" pattern="[0-9]*" maxLength={6} className="w-full rounded-2xl border border-slate-200 px-5 py-4 text-center text-2xl font-black tracking-[0.35em] outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder="000000" required />
+          {!!message && <p className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">{message}</p>}
+          <button disabled={loading || otp.length < 4} className="w-full rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
+            {loading ? (isAr ? 'جاري التحقق...' : 'Verifying...') : (isAr ? 'تأكيد وإنشاء الحساب' : 'Verify and create account')}
+          </button>
+          <button type="button" onClick={() => { setStep('phone'); setOtp(''); setMessage(''); }} className="w-full rounded-2xl bg-slate-100 px-6 py-3 font-black text-slate-700">
+            {isAr ? 'تغيير رقم الهاتف' : 'Change phone number'}
+          </button>
+        </form>
+      )}
+
+      <Link href={`/${country}/${lang}/login`} className="block text-center font-bold text-blue-700">{t('auth', 'already_have_account', isAr ? 'عندي حساب بالفعل' : 'I already have an account')}</Link>
+    </div>
   );
 }

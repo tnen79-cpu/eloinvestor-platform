@@ -1,0 +1,37 @@
+-- v73 Professional Page Builder / Mini Elementor
+create extension if not exists pgcrypto;
+create table if not exists public.platform_pages (id uuid primary key default gen_random_uuid(), page_key text not null, country_code text default 'om', title_ar text, title_en text, slug text, status text default 'published', settings jsonb default '{}'::jsonb, created_at timestamptz default now(), updated_at timestamptz default now());
+create table if not exists public.page_sections (id uuid primary key default gen_random_uuid(), page_key text not null default 'home', country_code text default 'om', section_type text not null default 'hero', title_ar text, title_en text, subtitle_ar text, subtitle_en text, image_url text, button_text_ar text, button_text_en text, button_url text, settings jsonb default '{}'::jsonb, is_active boolean default true, sort_order integer default 100, created_at timestamptz default now(), updated_at timestamptz default now());
+alter table public.page_sections add column if not exists page_key text default 'home';
+alter table public.page_sections add column if not exists country_code text default 'om';
+alter table public.page_sections add column if not exists section_type text default 'hero';
+alter table public.page_sections add column if not exists title_ar text;
+alter table public.page_sections add column if not exists title_en text;
+alter table public.page_sections add column if not exists subtitle_ar text;
+alter table public.page_sections add column if not exists subtitle_en text;
+alter table public.page_sections add column if not exists image_url text;
+alter table public.page_sections add column if not exists button_text_ar text;
+alter table public.page_sections add column if not exists button_text_en text;
+alter table public.page_sections add column if not exists button_url text;
+alter table public.page_sections add column if not exists settings jsonb default '{}'::jsonb;
+alter table public.page_sections add column if not exists is_active boolean default true;
+alter table public.page_sections add column if not exists sort_order integer default 100;
+alter table public.page_sections add column if not exists created_at timestamptz default now();
+alter table public.page_sections add column if not exists updated_at timestamptz default now();
+update public.page_sections set page_key = coalesce(page_key, 'home'), country_code = coalesce(country_code, 'om'), settings = coalesce(settings, '{}'::jsonb), is_active = coalesce(is_active, true), sort_order = coalesce(sort_order, 100);
+create index if not exists idx_page_sections_page_country_order on public.page_sections(page_key, country_code, sort_order);
+create index if not exists idx_page_sections_active on public.page_sections(is_active);
+create table if not exists public.page_builder_templates (id uuid primary key default gen_random_uuid(), name_ar text, name_en text, description_ar text, description_en text, thumbnail_url text, sections jsonb not null default '[]'::jsonb, is_active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
+create table if not exists public.page_builder_media (id uuid primary key default gen_random_uuid(), file_url text not null, file_name text, file_type text, alt_ar text, alt_en text, created_by uuid, created_at timestamptz default now());
+alter table public.page_sections enable row level security;
+alter table public.platform_pages enable row level security;
+alter table public.page_builder_templates enable row level security;
+alter table public.page_builder_media enable row level security;
+do $$ begin
+if not exists (select 1 from pg_policies where schemaname='public' and tablename='page_sections' and policyname='page_sections_dev_all') then create policy page_sections_dev_all on public.page_sections for all using (true) with check (true); end if;
+if not exists (select 1 from pg_policies where schemaname='public' and tablename='platform_pages' and policyname='platform_pages_dev_all') then create policy platform_pages_dev_all on public.platform_pages for all using (true) with check (true); end if;
+if not exists (select 1 from pg_policies where schemaname='public' and tablename='page_builder_templates' and policyname='page_builder_templates_dev_all') then create policy page_builder_templates_dev_all on public.page_builder_templates for all using (true) with check (true); end if;
+if not exists (select 1 from pg_policies where schemaname='public' and tablename='page_builder_media' and policyname='page_builder_media_dev_all') then create policy page_builder_media_dev_all on public.page_builder_media for all using (true) with check (true); end if;
+end $$;
+insert into storage.buckets (id, name, public) select 'page-builder', 'page-builder', true where not exists (select 1 from storage.buckets where id='page-builder');
+insert into public.platform_pages (page_key, country_code, title_ar, title_en, slug, status, settings) select 'home', 'om', 'الرئيسية', 'Homepage', '/', 'published', '{"builder":"pro","version":"v73"}'::jsonb where not exists (select 1 from public.platform_pages where page_key='home' and country_code='om');

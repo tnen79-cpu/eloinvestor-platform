@@ -154,7 +154,7 @@ export function InvestorActivity({ userId, country, lang }: { userId: string; co
           <h2 className="text-2xl font-black text-slate-950">{isAr ? 'مركز المستثمر' : 'Investor center'}</h2>
           <p className="mt-1 text-sm font-bold text-slate-500">{isAr ? 'محفوظاتك، تواصلاتك، وتفضيلات الترشيح الذكي.' : 'Saved opportunities, contacted projects, and matching preferences.'}</p>
         </div>
-        <Link href={`/${country}/${lang}/opportunities`} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-5 py-3 font-black text-white">
+        <Link href={`/${country}/${lang}/opportunities`} className="inline-flex items-center gap-2 rounded-2xl bg-blue-700 px-5 py-3 font-black text-white">
           <Search size={18} /> {isAr ? 'تصفح الفرص' : 'Browse'}
         </Link>
       </div>
@@ -169,14 +169,14 @@ export function InvestorActivity({ userId, country, lang }: { userId: string; co
         <ActivityList title={isAr ? 'المشاريع المحفوظة' : 'Saved projects'} empty={isAr ? 'لم تحفظ أي مشروع بعد.' : 'No saved projects yet.'} items={saved} country={country} lang={lang} loading={loading} />
         <ActivityList title={isAr ? 'المشاريع التي تواصلت معها' : 'Contacted projects'} empty={isAr ? 'لا توجد طلبات تواصل بعد.' : 'No contact requests yet.'} items={contacted} country={country} lang={lang} loading={loading} />
         <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
-          <div className="mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-emerald-100 text-emerald-800"><Wallet size={20} /></div>
+          <div className="mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-blue-100 text-blue-800"><Wallet size={20} /></div>
           <h3 className="text-lg font-black text-slate-950">{isAr ? 'تفضيلات الترشيح' : 'Matching preferences'}</h3>
           <div className="mt-4 space-y-3 text-sm font-bold text-slate-600">
             <p><span className="text-slate-950">{isAr ? 'الميزانية:' : 'Budget:'}</span> {budget}</p>
             <p><span className="text-slate-950">{isAr ? 'الموقع:' : 'Location:'}</span> {preferences?.preferred_location || (isAr ? 'غير محدد' : 'Not set')}</p>
             <p><span className="text-slate-950">{isAr ? 'القطاعات:' : 'Sectors:'}</span> {Array.isArray(preferences?.preferred_categories) && preferences.preferred_categories.length ? preferences.preferred_categories.join('، ') : (isAr ? 'غير محدد' : 'Not set')}</p>
           </div>
-          <Link href={`/${country}/${lang}/verification`} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 font-black text-emerald-900">
+          <Link href={`/${country}/${lang}/verification`} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 py-3 font-black text-blue-900">
             <CheckCircle2 size={18} /> {isAr ? 'التوثيق والترقية' : 'Verify account'}
           </Link>
         </div>
@@ -188,7 +188,7 @@ export function InvestorActivity({ userId, country, lang }: { userId: string; co
 function MiniPanel({ icon: Icon, label, value }: { icon: any; label: string; value: string | number }) {
   return (
     <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
-      <Icon className="text-emerald-700" size={22} />
+      <Icon className="text-blue-700" size={22} />
       <p className="mt-3 text-sm font-bold text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-black text-slate-950">{value}</p>
     </div>
@@ -214,12 +214,12 @@ function ActivityList({ title, empty, items, country, lang, loading }: { title: 
 
 function SmallProject({ item, country, lang }: { item: Item; country: string; lang: string }) {
   return (
-    <Link href={`/${country}/${lang}/project/${encodeURIComponent(item.slug || item.projectId)}`} className="flex gap-3 rounded-2xl border border-slate-100 p-3 transition hover:border-emerald-200 hover:bg-emerald-50/40">
+    <Link href={`/${country}/${lang}/project/${encodeURIComponent(item.slug || item.projectId)}`} className="flex gap-3 rounded-2xl border border-slate-100 p-3 transition hover:border-blue-200 hover:bg-blue-50/40">
       <img src={item.image} alt={item.title} className="h-20 w-20 rounded-2xl object-cover" />
       <div className="min-w-0 flex-1">
         <h4 className="line-clamp-1 font-black text-slate-950">{item.title}</h4>
         <p className="mt-1 text-xs font-bold text-slate-500">{item.city || '—'}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-black text-emerald-800">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-black text-blue-800">
           <span>{formatMoney(item.price, lang)}</span>
           <span className="inline-flex items-center gap-1"><TrendingUp size={13} /> {item.roi || 0}%</span>
         </div>

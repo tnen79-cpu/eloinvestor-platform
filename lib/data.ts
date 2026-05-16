@@ -118,7 +118,7 @@ export function getDictionary(lang: string) {
 export function formatMoney(amount: number, countryCode: string, lang: string) {
   const country = getCountry(countryCode);
   const symbol = lang === 'ar' ? country.symbolAr : country.symbolEn;
-  return `${new Intl.NumberFormat(lang === 'ar' ? 'ar-OM' : 'en-US').format(amount)} ${symbol}`;
+  return lang === 'ar' ? `${symbol} ${new Intl.NumberFormat('en-US').format(amount)}` : `${new Intl.NumberFormat('en-US').format(amount)} ${symbol}`;
 }
 
 export function getCategoryLabel(key: string, lang: string) {

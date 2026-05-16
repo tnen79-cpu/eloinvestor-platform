@@ -20,7 +20,7 @@ type VerificationRow = {
 
 function statusMeta(status: string, isAr: boolean) {
   const normalized = String(status || 'pending').toLowerCase();
-  if (['approved', 'accepted'].includes(normalized)) return { label: isAr ? 'مقبول' : 'Approved', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-100', icon: CheckCircle2 };
+  if (['approved', 'accepted'].includes(normalized)) return { label: isAr ? 'مقبول' : 'Approved', cls: 'bg-blue-50 text-blue-700 ring-blue-100', icon: CheckCircle2 };
   if (['rejected', 'declined'].includes(normalized)) return { label: isAr ? 'مرفوض' : 'Rejected', cls: 'bg-red-50 text-red-700 ring-red-100', icon: AlertCircle };
   if (['revision', 'needs_revision'].includes(normalized)) return { label: isAr ? 'يحتاج تعديل' : 'Needs revision', cls: 'bg-orange-50 text-orange-700 ring-orange-100', icon: AlertCircle };
   return { label: isAr ? 'قيد المراجعة' : 'Pending review', cls: 'bg-amber-50 text-amber-700 ring-amber-100', icon: Clock3 };
@@ -128,8 +128,26 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
         notes: note,
         country_code: country.toLowerCase(),
       };
-      const { error } = await supabaseBrowser.from('verification_requests').insert(payload);
-      if (error) throw error;
+      const { data: sessionData } = await supabaseBrowser.auth.getSession();
+      const token = sessionData.session?.access_token || '';
+      const response = await fetch('/api/trust/verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          requestType,
+          projectId: requestType === 'project' ? projectId : null,
+          projectTitle: requestType === 'project' ? currentProject?.title || '' : '',
+          documentUrl,
+          documentType: file?.type || '',
+          note,
+          country: country.toLowerCase(),
+        }),
+      });
+      const apiPayload = await response.json().catch(() => ({}));
+      if (!response.ok || !apiPayload.ok) throw new Error(apiPayload.error || (isAr ? 'تعذر إرسال طلب التوثيق.' : 'Failed to submit verification request.'));
       setMessage(isAr ? 'تم إرسال طلب التوثيق بنجاح.' : 'Verification request submitted.');
       setFile(null);
       setNote('');
@@ -144,7 +162,7 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl rounded-[2rem] bg-white p-8 text-center shadow-sm">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-700" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-700" />
         <p className="mt-4 font-black text-slate-700">{isAr ? 'جاري تحميل مركز التوثيق...' : 'Loading verification center...'}</p>
       </div>
     );
@@ -155,7 +173,7 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
       <section className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm md:p-8">
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 ring-1 ring-emerald-100">
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-800 ring-1 ring-blue-100">
               <ShieldCheck className="h-4 w-4" /> {isAr ? 'مركز التوثيق' : 'Verification Center'}
             </span>
             <h1 className="mt-4 text-3xl font-black text-slate-950 md:text-5xl">{isAr ? 'وثّق مشروعك أو حسابك' : 'Verify your project or account'}</h1>
@@ -173,12 +191,12 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
           {message ? <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 ring-1 ring-amber-100">{message}</div> : null}
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <button type="button" onClick={() => setRequestType('project')} className={`rounded-[1.5rem] border p-5 text-start transition ${requestType === 'project' ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-600'}`}>
+            <button type="button" onClick={() => setRequestType('project')} className={`rounded-[1.5rem] border p-5 text-start transition ${requestType === 'project' ? 'border-blue-300 bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-600'}`}>
               <Building2 className="h-6 w-6" />
               <p className="mt-3 font-black">{isAr ? 'توثيق مشروع' : 'Project verification'}</p>
               <p className="mt-1 text-xs font-bold opacity-70">{isAr ? 'سجل تجاري / إثبات ملكية / مستندات المشروع' : 'CR / ownership proof / project documents'}</p>
             </button>
-            <button type="button" onClick={() => setRequestType('investor')} className={`rounded-[1.5rem] border p-5 text-start transition ${requestType === 'investor' ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-600'}`}>
+            <button type="button" onClick={() => setRequestType('investor')} className={`rounded-[1.5rem] border p-5 text-start transition ${requestType === 'investor' ? 'border-blue-300 bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-600'}`}>
               <UserCheck className="h-6 w-6" />
               <p className="mt-3 font-black">{isAr ? 'توثيق مستثمر' : 'Investor verification'}</p>
               <p className="mt-1 text-xs font-bold opacity-70">{isAr ? 'هوية / إثبات مالي / كشف حساب' : 'ID / proof of funds / bank statement'}</p>
@@ -188,7 +206,7 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
           {requestType === 'project' && (
             <label className="mt-6 block">
               <span className="text-sm font-black text-slate-700">{isAr ? 'اختر المشروع' : 'Select project'}</span>
-              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="mt-2 h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 font-bold outline-none focus:border-emerald-500">
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="mt-2 h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 font-bold outline-none focus:border-blue-500">
                 {projects.length ? projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>) : <option value="">{isAr ? 'لا توجد مشاريع' : 'No projects'}</option>}
               </select>
             </label>
@@ -197,7 +215,7 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
           <label className="mt-6 block">
             <span className="text-sm font-black text-slate-700">{isAr ? 'ملف التوثيق' : 'Verification file'}</span>
             <div className="mt-2 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-              <FileUp className="mx-auto h-8 w-8 text-emerald-700" />
+              <FileUp className="mx-auto h-8 w-8 text-blue-700" />
               <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-4 w-full rounded-2xl bg-white p-3 text-sm font-bold" accept=".pdf,.png,.jpg,.jpeg,.webp" />
               <p className="mt-2 text-xs font-bold text-slate-500">PDF, JPG, PNG, WEBP</p>
             </div>
@@ -205,10 +223,10 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
 
           <label className="mt-6 block">
             <span className="text-sm font-black text-slate-700">{isAr ? 'ملاحظات اختيارية' : 'Optional notes'}</span>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-2 min-h-32 w-full rounded-2xl border border-slate-200 bg-white p-4 font-bold outline-none focus:border-emerald-500" placeholder={isAr ? 'اكتب أي ملاحظة تساعد الإدارة على مراجعة الطلب...' : 'Add notes for admin review...'} />
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-2 min-h-32 w-full rounded-2xl border border-slate-200 bg-white p-4 font-bold outline-none focus:border-blue-500" placeholder={isAr ? 'اكتب أي ملاحظة تساعد الإدارة على مراجعة الطلب...' : 'Add notes for admin review...'} />
           </label>
 
-          <button disabled={submitting} className="mt-6 inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 font-black text-white shadow-lg shadow-emerald-900/10 disabled:opacity-60">
+          <button disabled={submitting} className="mt-6 inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 font-black text-white shadow-lg shadow-blue-900/10 disabled:opacity-60">
             {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
             {isAr ? 'إرسال طلب التوثيق' : 'Submit verification request'}
           </button>
@@ -226,7 +244,7 @@ export function VerificationCenter({ country, lang }: { country: string; lang: s
                     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ring-1 ${meta.cls}`}><meta.icon className="h-4 w-4" /> {meta.label}</span>
                   </div>
                   {request.admin_note ? <p className="mt-3 text-xs font-bold leading-6 text-slate-500">{request.admin_note}</p> : null}
-                  {request.document_url ? <a href={request.document_url} target="_blank" className="mt-3 inline-flex text-xs font-black text-emerald-700" rel="noreferrer">{isAr ? 'عرض الملف' : 'View file'}</a> : null}
+                  {request.document_url ? <a href={request.document_url} target="_blank" className="mt-3 inline-flex text-xs font-black text-blue-700" rel="noreferrer">{isAr ? 'عرض الملف' : 'View file'}</a> : null}
                 </div>
               );
             }) : <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">{isAr ? 'لا توجد طلبات توثيق بعد.' : 'No verification requests yet.'}</p>}
