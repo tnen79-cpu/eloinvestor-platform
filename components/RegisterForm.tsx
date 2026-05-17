@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Chrome, Smartphone } from 'lucide-react';
-import { supabaseBrowser } from '@/lib/supabase-browser';
+import type { ConfirmationResult } from 'firebase/auth';
+import { sendFirebasePhoneOtp, signInWithFirebaseGoogle, getFirebaseIdToken, hasFirebaseConfig } from '@/lib/firebase-client';
 import { useI18n } from '@/components/I18nProvider';
 
 type Step = 'phone' | 'otp';
@@ -22,16 +23,23 @@ const COUNTRY_CODES = [
   { code: '+964', labelAr: 'العراق', labelEn: 'Iraq' },
 ];
 
-function digitsOnly(value: string) {
-  return value.replace(/[^0-9]/g, '');
-}
+function digitsOnly(value: string) { return value.replace(/[^0-9]/g, ''); }
 
 function normalizePhone(countryCode: string, phone: string) {
   const codeDigits = digitsOnly(countryCode);
-  let phoneDigits = digitsOnly(phone);
-  phoneDigits = phoneDigits.replace(/^0+/, '');
+  let phoneDigits = digitsOnly(phone).replace(/^0+/, '');
   if (phoneDigits.startsWith(codeDigits)) return `+${phoneDigits}`;
   return `+${codeDigits}${phoneDigits}`;
+}
+
+async function syncFirebaseProfile(payload: Record<string, unknown> = {}) {
+  const token = await getFirebaseIdToken();
+  if (!token) return;
+  await fetch('/api/auth/firebase-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
 }
 
 export function RegisterForm({ country, lang }: { country: string; lang: string }) {
@@ -44,94 +52,68 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
   const [otp, setOtp] = useState('');
   const [accountType, setAccountType] = useState('investor');
   const [step, setStep] = useState<Step>('phone');
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
-  async function ensureProfile(userId: string) {
-    try {
-      await supabaseBrowser.from('users').upsert({
-        auth_id: userId,
-        name,
-        phone: fullPhone,
-        phone_country_code: countryCode,
-        account_type: accountType,
-        role: 'user',
-        plan: 'free',
-        subscription_status: 'free',
-      }, { onConflict: 'auth_id' });
-    } catch (error) {
-      console.warn('Profile upsert failed:', error);
-    }
+  async function finishRegister(payload: Record<string, unknown> = {}) {
+    await syncFirebaseProfile({ name, account_type: accountType, phone: fullPhone, phone_country_code: countryCode, ...payload }).catch((error) => console.warn('Firebase profile sync failed:', error));
+    router.push(`/${country}/${lang}/dashboard`);
+    router.refresh();
   }
 
   async function sendOtp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setMessage('');
-
-    const { error } = await supabaseBrowser.auth.signInWithOtp({
-      phone: fullPhone,
-      options: {
-        shouldCreateUser: true,
-        data: { name, account_type: accountType, role: 'user', phone: fullPhone, phone_country_code: countryCode },
-      },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setMessage(error.message);
-      return;
+    try {
+      if (!hasFirebaseConfig()) throw new Error(isAr ? 'مفاتيح Firebase غير مضافة.' : 'Firebase keys are missing.');
+      const result = await sendFirebasePhoneOtp(fullPhone, 'firebase-recaptcha-container-register');
+      setConfirmation(result);
+      setStep('otp');
+      setMessage(isAr ? `تم إرسال رمز التحقق إلى ${fullPhone}` : `Verification code sent to ${fullPhone}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : (isAr ? 'فشل إرسال الرمز.' : 'Failed to send OTP.'));
+    } finally {
+      setLoading(false);
     }
-
-    setStep('otp');
-    setMessage(isAr ? `تم إرسال رمز التحقق إلى ${fullPhone}` : `Verification code sent to ${fullPhone}`);
   }
 
   async function verifyOtp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setMessage('');
-
-    const { data, error } = await supabaseBrowser.auth.verifyOtp({
-      phone: fullPhone,
-      token: digitsOnly(otp),
-      type: 'sms',
-    });
-
-    if (error) {
+    try {
+      if (!confirmation) throw new Error(isAr ? 'أعد إرسال رمز التحقق.' : 'Please resend the code.');
+      await confirmation.confirm(digitsOnly(otp));
+      await finishRegister();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : (isAr ? 'رمز غير صحيح.' : 'Invalid code.'));
       setLoading(false);
-      setMessage(error.message);
-      return;
     }
-
-    if (data.user) await ensureProfile(data.user.id);
-    setLoading(false);
-    router.push(`/${country}/${lang}/dashboard`);
-    router.refresh();
   }
 
   async function registerWithGoogle() {
     setLoading(true);
     setMessage('');
-    const redirectTo = `${window.location.origin}/${country}/${lang}/auth/callback?next=/${country}/${lang}/dashboard&account_type=${accountType}`;
-    const { error } = await supabaseBrowser.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        queryParams: { prompt: 'select_account' },
-      },
-    });
-    if (error) {
+    try {
+      if (!hasFirebaseConfig()) throw new Error(isAr ? 'مفاتيح Firebase غير مضافة.' : 'Firebase keys are missing.');
+      const result = await signInWithFirebaseGoogle();
+      const googleName = name.trim() || result.user.displayName || '';
+      await syncFirebaseProfile({ name: googleName, account_type: accountType });
+      router.push(`/${country}/${lang}/dashboard`);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : (isAr ? 'فشل الدخول بواسطة Google.' : 'Google login failed.'));
       setLoading(false);
-      setMessage(error.message);
     }
   }
 
   return (
     <div className="mt-8 space-y-4">
+      <div id="firebase-recaptcha-container-register" />
       <div className="space-y-4">
         <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={t('auth', 'full_name', isAr ? 'الاسم الكامل' : 'Full name')} required={step === 'phone'} />
         <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10">
@@ -156,9 +138,7 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
         <form onSubmit={sendOtp} className="space-y-4">
           <div className="grid grid-cols-[130px_1fr] gap-3">
             <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" aria-label={isAr ? 'مفتاح الدولة' : 'Country code'}>
-              {COUNTRY_CODES.map((item) => (
-                <option key={item.code} value={item.code}>{item.code} · {isAr ? item.labelAr : item.labelEn}</option>
-              ))}
+              {COUNTRY_CODES.map((item) => <option key={item.code} value={item.code}>{item.code} · {isAr ? item.labelAr : item.labelEn}</option>)}
             </select>
             <input value={phone} onChange={(e) => setPhone(digitsOnly(e.target.value))} inputMode="numeric" pattern="[0-9]*" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={isAr ? 'رقم الهاتف' : 'Phone number'} required />
           </div>
