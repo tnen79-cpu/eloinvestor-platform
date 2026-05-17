@@ -3,15 +3,15 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabaseBrowser } from '@/lib/supabase-browser';
+import { getCurrentAppUser } from '@/lib/auth-client';
 
 export default function MyProfileRedirect({ params }: { params: Promise<{ country: string; lang: string }> }) {
   const router = useRouter();
   useEffect(() => {
     let mounted = true;
     params.then(async ({ country, lang }) => {
-      const { data } = await supabaseBrowser.auth.getUser();
-      const uid = data.user?.id;
+      const user = await getCurrentAppUser();
+      const uid = user?.id;
       if (!mounted) return;
       if (uid) router.replace(`/${country}/${lang}/profile/${encodeURIComponent(uid)}`);
       else router.replace(`/${country}/${lang}/login`);

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, LayoutDashboard, PlusCircle, ShieldCheck, UserRound, BadgeCheck, MessageCircle } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { getCurrentAppUser, signOutEverywhere, firebaseCompatibleUserQuery } from '@/lib/auth-client';
 import { accountTypeLabel, canAddProjects, isAdminRole } from '@/lib/account';
 import { useI18n } from '@/components/I18nProvider';
 
@@ -36,8 +37,7 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
 
     async function loadUser() {
       setLoading(true);
-      const { data } = await supabaseBrowser.auth.getUser();
-      const authUser = data?.user;
+      const authUser = await getCurrentAppUser();
 
       if (!mounted) return;
       if (!authUser) {
@@ -53,8 +53,8 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
       try {
         const { data: profile } = await supabaseBrowser
           .from('users')
-          .select('name,role,account_type')
-          .eq('auth_id', authUser.id)
+          .select('name,role,account_type,email,phone,firebase_uid,auth_id')
+          .or(firebaseCompatibleUserQuery(authUser))
           .maybeSingle();
 
         if (profile) {
@@ -90,7 +90,7 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
   }, [open]);
 
   async function logout() {
-    await supabaseBrowser.auth.signOut();
+    await signOutEverywhere();
     setUser(null);
     setOpen(false);
     router.push(`/${country}/${lang}`);

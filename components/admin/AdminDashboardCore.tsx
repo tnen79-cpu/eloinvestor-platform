@@ -43,6 +43,7 @@ import {
   Home,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
 import { AnalyticsBars } from '@/components/AnalyticsBars';
 import { isAdminRole } from '@/lib/account';
 import { flattenDefaultTranslations } from '@/lib/i18n';
@@ -647,8 +648,7 @@ export default function AdminDashboard() {
   const [paymentSettingsMessage, setPaymentSettingsMessage] = useState('');
 
   async function checkAdmin() {
-    const { data: userData } = await supabaseBrowser.auth.getUser();
-    const user = userData.user;
+    const user = await getCurrentAppUser();
     if (!user) {
       setAccessDenied(true);
       setLoading(false);
@@ -665,7 +665,7 @@ export default function AdminDashboard() {
       const directProfile = await supabaseBrowser
         .from('users')
         .select('*')
-        .or(`auth_id.eq.${user.id},id.eq.${user.id},email.eq.${user.email}`)
+        .or(firebaseCompatibleUserQuery(user))
         .maybeSingle();
       if (!directProfile.error) profile = directProfile.data;
     }

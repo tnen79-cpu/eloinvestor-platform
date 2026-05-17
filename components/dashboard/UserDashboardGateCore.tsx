@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
   BarChart3,
@@ -30,8 +31,10 @@ import {
   Wallet,
   Menu,
   X,
+  LogOut,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { getCurrentAppUser, signOutEverywhere, firebaseCompatibleUserQuery } from '@/lib/auth-client';
 import { AddProjectForm } from '@/components/AddProjectForm';
 import { SavedSearchesPanel } from '@/components/SavedSearchesPanel';
 import { accountTypeLabel, canAddProjects, canInvest, isAdminRole } from '@/lib/account';
@@ -202,12 +205,11 @@ function mapMini(row: Record<string, any>, prefix: string): MiniProject {
 }
 
 async function getProfile(): Promise<Profile | null> {
-  const { data } = await supabaseBrowser.auth.getUser();
-  const authUser = data.user;
+  const authUser = await getCurrentAppUser();
   if (!authUser) return null;
   let profile: any = null;
   try {
-    const res = await supabaseBrowser.from('users').select('*').eq('auth_id', authUser.id).maybeSingle();
+    const res = await supabaseBrowser.from('users').select('*').or(firebaseCompatibleUserQuery(authUser)).maybeSingle();
     profile = res.data;
   } catch (error) {
     console.warn('Profile lookup failed:', error);
@@ -758,6 +760,12 @@ function DashboardSidebar({ profile, menu, active, setActive, country, lang }: {
 }
 
 function DashboardHeader({ profile, owner, investor, country, lang, setActive }: { profile: Profile; owner: boolean; investor: boolean; country: string; lang: string; setActive: (tab: Tab) => void }) {
+  const router = useRouter();
+  async function logout() {
+    await signOutEverywhere();
+    router.push(`/${country}/${lang}/login`);
+    router.refresh();
+  }
   return (
     <section className="clean-hero">
       <div>
@@ -770,6 +778,7 @@ function DashboardHeader({ profile, owner, investor, country, lang, setActive }:
         <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`}>صفحتي الشخصية</Link>
         {owner && <button type="button" onClick={() => setActive('add-project')}>إضافة مشروع</button>}
         {investor && <Link href={`/${country}/${lang}/opportunities`}>فرص الاستثمار</Link>}
+        <button type="button" onClick={logout} className="dashboard-logout-button"><LogOut size={16} /> تسجيل الخروج</button>
       </div>
     </section>
   );
@@ -1354,6 +1363,7 @@ function MobileDashboardDrawer({ open, setOpen, profile, menu, active, setActive
         <nav className="clean-mobile-drawer-menu">
           <Link href={`/${country}/${lang}`} onClick={() => setOpen(false)}><Home size={18} /><span>الرئيسية</span></Link>
           <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`} onClick={() => setOpen(false)}><UserCircle size={18} /><span>صفحتي الشخصية</span></Link>
+          <button type="button" onClick={async () => { await signOutEverywhere(); window.location.href = `/${country}/${lang}/login`; }}><LogOut size={18} /><span>تسجيل الخروج</span></button>
           {menu.filter((item) => !item.href).map((item, index) => {
             const Icon = item.icon;
             return <button key={`${item.id}-${index}`} type="button" onClick={() => setActive(item.id)} className={active === item.id ? 'active' : ''}><Icon size={18} /><span>{item.label}</span></button>;

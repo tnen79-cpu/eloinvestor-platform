@@ -35,11 +35,13 @@ function normalizePhone(countryCode: string, phone: string) {
 async function syncFirebaseProfile(payload: Record<string, unknown> = {}) {
   const token = await getFirebaseIdToken();
   if (!token) return;
-  await fetch('/api/auth/firebase-profile', {
+  const response = await fetch('/api/auth/firebase-profile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),
   });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || json?.ok === false) throw new Error(json?.error || 'Profile sync failed');
 }
 
 export function RegisterForm({ country, lang }: { country: string; lang: string }) {
@@ -59,7 +61,7 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
   const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
   async function finishRegister(payload: Record<string, unknown> = {}) {
-    await syncFirebaseProfile({ name, account_type: accountType, phone: fullPhone, phone_country_code: countryCode, ...payload }).catch((error) => console.warn('Firebase profile sync failed:', error));
+    await syncFirebaseProfile({ name, account_type: accountType, phone: fullPhone, phone_country_code: countryCode, complete_onboarding: true, onboarding_completed: true, ...payload }).catch((error) => console.warn('Firebase profile sync failed:', error));
     router.push(`/${country}/${lang}/dashboard`);
     router.refresh();
   }
@@ -102,7 +104,7 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
       if (!hasFirebaseConfig()) throw new Error(isAr ? 'مفاتيح Firebase غير مضافة.' : 'Firebase keys are missing.');
       const result = await signInWithFirebaseGoogle();
       const googleName = name.trim() || result.user.displayName || '';
-      await syncFirebaseProfile({ name: googleName, account_type: accountType });
+      await syncFirebaseProfile({ name: googleName, account_type: accountType, complete_onboarding: true, onboarding_completed: true });
       router.push(`/${country}/${lang}/dashboard`);
       router.refresh();
     } catch (error) {

@@ -2386,3 +2386,7 @@ button[class*="bg-green-"],a[class*="bg-green-"],button[class*="bg-emerald-"],a[
   position:relative!important;
   z-index:1!important;
 }
+
+
+.dashboard-logout-button{display:inline-flex!important;align-items:center;gap:.45rem;border:1px solid #fecaca!important;background:#fff1f2!important;color:#b91c1c!important;border-radius:999px!important;padding:.72rem 1rem!important;font-weight:900!important;box-shadow:none!important}.dashboard-logout-button:hover{background:#fee2e2!important;color:#991b1b!important}
+.clean-mobile-drawer-menu button:first-child{color:#b91c1c!important;background:#fff1f2!important;border-color:#fecaca!important}

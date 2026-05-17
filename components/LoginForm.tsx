@@ -34,12 +34,15 @@ function normalizePhone(countryCode: string, phone: string) {
 
 async function syncFirebaseProfile(payload: Record<string, unknown> = {}) {
   const token = await getFirebaseIdToken();
-  if (!token) return;
-  await fetch('/api/auth/firebase-profile', {
+  if (!token) return { ok: false, needs_onboarding: true };
+  const response = await fetch('/api/auth/firebase-profile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),
   });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || json?.ok === false) throw new Error(json?.error || 'Profile sync failed');
+  return json;
 }
 
 export function LoginForm({ country, lang }: { country: string; lang: string }) {
@@ -57,8 +60,13 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
   const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
   async function finishLogin(payload: Record<string, unknown> = {}) {
-    await syncFirebaseProfile(payload).catch((error) => console.warn('Firebase profile sync failed:', error));
-    router.push(`/${country}/${lang}/dashboard`);
+    const result = await syncFirebaseProfile({ ...payload, login_source: 'login' });
+    const next = `/${country}/${lang}/dashboard`;
+    if (result?.needs_onboarding) {
+      router.push(`/${country}/${lang}/complete-profile?next=${encodeURIComponent(next)}`);
+    } else {
+      router.push(next);
+    }
     router.refresh();
   }
 
@@ -86,7 +94,7 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
     try {
       if (!confirmation) throw new Error(isAr ? 'أعد إرسال رمز الدخول.' : 'Please resend the code.');
       await confirmation.confirm(digitsOnly(otp));
-      await finishLogin({ phone: fullPhone, phone_country_code: countryCode, account_type: 'investor' });
+      await finishLogin({ phone: fullPhone, phone_country_code: countryCode });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : (isAr ? 'رمز غير صحيح.' : 'Invalid code.'));
       setLoading(false);
@@ -99,7 +107,7 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
     try {
       if (!hasFirebaseConfig()) throw new Error(isAr ? 'مفاتيح Firebase غير مضافة.' : 'Firebase keys are missing.');
       await signInWithFirebaseGoogle();
-      await finishLogin({ account_type: 'investor' });
+      await finishLogin();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : (isAr ? 'فشل الدخول بواسطة Google.' : 'Google login failed.'));
       setLoading(false);
