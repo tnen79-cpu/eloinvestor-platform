@@ -34,7 +34,10 @@ export function getFirebaseApp(): FirebaseApp | null {
 
 export function getFirebaseAuth(): Auth | null {
   const app = getFirebaseApp();
-  return app ? getAuth(app) : null;
+  if (!app) return null;
+  const auth = getAuth(app);
+  auth.languageCode = 'ar';
+  return auth;
 }
 
 export function firebaseUserToSupabaseLike(user: User | null) {
@@ -74,14 +77,26 @@ export function watchFirebaseAuth(callback: (user: User | null) => void) {
 
 export function getOrCreateRecaptcha(containerId: string) {
   const auth = getFirebaseAuth();
-  if (!auth) throw new Error('Firebase غير مهيأ. أضف مفاتيح Firebase في .env و Vercel.');
+  if (!auth) throw new Error('Firebase غير مهيأ. أضف مفاتيح Firebase في Vercel.');
+  if (typeof window === 'undefined') throw new Error('Firebase Phone Auth يعمل من المتصفح فقط.');
+
   const w = window as any;
   const key = `__elo_recaptcha_${containerId}`;
+  const container = document.getElementById(containerId);
+  if (!container) throw new Error(`عنصر reCAPTCHA غير موجود: ${containerId}`);
+
+  // أحياناً يبقى verifier قديم بعد hot reload أو تغيير الصفحة، لذلك نعيد استخدامه إن كان صالحاً.
   if (w[key]) return w[key] as RecaptchaVerifier;
+
   w[key] = new RecaptchaVerifier(auth, containerId, {
     size: 'invisible',
     callback: () => undefined,
+    'expired-callback': () => {
+      try { w[key]?.clear?.(); } catch {}
+      delete w[key];
+    },
   });
+
   return w[key] as RecaptchaVerifier;
 }
 
@@ -89,6 +104,8 @@ export async function sendFirebasePhoneOtp(phone: string, containerId = 'firebas
   const auth = getFirebaseAuth();
   if (!auth) throw new Error('Firebase غير مهيأ.');
   const verifier = getOrCreateRecaptcha(containerId);
+  // render مهم خصوصاً على الدومين الحقيقي حتى لا يفشل silently.
+  await verifier.render().catch(() => undefined);
   return signInWithPhoneNumber(auth, phone, verifier);
 }
 

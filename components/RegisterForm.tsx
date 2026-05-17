@@ -113,6 +113,7 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
 
   return (
     <div className="mt-8 space-y-4">
+      <p className="text-center text-[11px] font-black text-blue-500/70">Firebase Auth v84</p>
       <div id="firebase-recaptcha-container-register" />
       <div className="space-y-4">
         <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={t('auth', 'full_name', isAr ? 'الاسم الكامل' : 'Full name')} required={step === 'phone'} />

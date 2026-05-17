@@ -108,6 +108,7 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
 
   return (
     <div className="mt-8 space-y-4">
+      <p className="text-center text-[11px] font-black text-blue-500/70">Firebase Auth v84</p>
       <div id="firebase-recaptcha-container-login" />
       <button type="button" onClick={loginWithGoogle} disabled={loading} className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 font-black text-slate-900 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
         <Chrome size={21} />
