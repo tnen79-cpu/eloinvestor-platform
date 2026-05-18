@@ -52,7 +52,7 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
   const [countryCode, setCountryCode] = useState('+968');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [accountType, setAccountType] = useState('investor');
+  const [accountType, setAccountType] = useState<'investor' | 'owner' | 'both' | ''>('');
   const [step, setStep] = useState<Step>('phone');
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,7 +61,8 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
   const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
   async function finishRegister(payload: Record<string, unknown> = {}) {
-    await syncFirebaseProfile({ name, account_type: accountType, phone: fullPhone, phone_country_code: countryCode, complete_onboarding: true, onboarding_completed: true, ...payload }).catch((error) => console.warn('Firebase profile sync failed:', error));
+    if (!accountType) throw new Error(isAr ? 'اختر نوع الحساب أولًا.' : 'Choose account type first.');
+    await syncFirebaseProfile({ ...payload, name, account_type: accountType, accountType, phone: fullPhone, phone_country_code: countryCode, complete_onboarding: true, onboarding_completed: true }).catch((error) => console.warn('Firebase profile sync failed:', error));
     router.push(`/${country}/${lang}/dashboard`);
     router.refresh();
   }
@@ -115,18 +116,19 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
 
   return (
     <div className="mt-8 space-y-4">
-      <p className="text-center text-[11px] font-black text-blue-500/70">Firebase Auth v88</p>
+      <p className="text-center text-[11px] font-black text-blue-500/70">Firebase Auth v90 Core</p>
       <div id="firebase-recaptcha-container-register" className="flex min-h-[78px] justify-center overflow-hidden rounded-2xl bg-slate-50 p-2" />
       <div className="space-y-4">
         <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={t('auth', 'full_name', isAr ? 'الاسم الكامل' : 'Full name')} required={step === 'phone'} />
-        <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10">
+        <select value={accountType} onChange={(e) => setAccountType(e.target.value as any)} className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10">
+          <option value="">{isAr ? 'اختر نوع الحساب' : 'Choose account type'}</option>
           <option value="investor">{t('auth', 'investor', isAr ? 'مستثمر' : 'Investor')}</option>
           <option value="owner">{t('auth', 'owner', isAr ? 'صاحب مشروع' : 'Project owner')}</option>
           <option value="both">{t('auth', 'both', isAr ? 'مستثمر وصاحب مشروع' : 'Investor and owner')}</option>
         </select>
       </div>
 
-      <button type="button" onClick={registerWithGoogle} disabled={loading || !name.trim()} className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 font-black text-slate-900 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="button" onClick={registerWithGoogle} disabled={loading || !name.trim() || !accountType} className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 font-black text-slate-900 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
         <Chrome size={21} />
         {isAr ? 'إنشاء/دخول بواسطة Google' : 'Continue with Google'}
       </button>
@@ -146,7 +148,7 @@ export function RegisterForm({ country, lang }: { country: string; lang: string 
             <input value={phone} onChange={(e) => setPhone(digitsOnly(e.target.value))} inputMode="numeric" pattern="[0-9]*" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={isAr ? 'رقم الهاتف' : 'Phone number'} required />
           </div>
           {!!message && <p className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">{message}</p>}
-          <button disabled={loading || !name.trim() || phone.length < 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
+          <button disabled={loading || !name.trim() || !accountType || phone.length < 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
             <Smartphone size={19} />
             {loading ? (isAr ? 'جاري الإرسال...' : 'Sending...') : (isAr ? 'إرسال رمز التحقق' : 'Send verification code')}
           </button>

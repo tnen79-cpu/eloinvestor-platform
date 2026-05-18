@@ -908,12 +908,29 @@ export default function AdminDashboard() {
       const raw = String((publishModeSettingResult.value.data as any)?.value ?? 'manual').toLowerCase();
       setProjectPublishMode(['auto', 'automatic', 'approved', 'published'].includes(raw) ? 'auto' : 'manual');
     }
-    if (usersResult.status === 'fulfilled' && !usersResult.value.error) {
+    if (usersResult.status === 'fulfilled' && !usersResult.value.error && Array.isArray(usersResult.value.data) && usersResult.value.data.length) {
       setUsers(usersResult.value.data || []);
     } else {
-      const rpcUsers = await supabaseBrowser.rpc('admin_get_users');
-      if (!rpcUsers.error) setUsers(rpcUsers.data || []);
-      else setNotice({ type: 'error', text: `لم يتم تحميل المستخدمين: ${rpcUsers.error.message}` });
+      let loadedUsers = false;
+      try {
+        const firebaseToken = await getFirebaseIdToken();
+        const response = await fetch('/api/admin/users', {
+          cache: 'no-store',
+          headers: firebaseToken ? { Authorization: `Bearer ${firebaseToken}` } : {},
+        });
+        const json = await response.json().catch(() => ({}));
+        if (response.ok && Array.isArray(json?.users)) {
+          setUsers(json.users);
+          loadedUsers = true;
+        }
+      } catch (error) {
+        console.warn('Admin users API failed:', error);
+      }
+      if (!loadedUsers) {
+        const rpcUsers = await supabaseBrowser.rpc('admin_get_users');
+        if (!rpcUsers.error) setUsers(rpcUsers.data || []);
+        else setNotice({ type: 'error', text: `لم يتم تحميل المستخدمين: ${rpcUsers.error.message}` });
+      }
     }
     if (packagesResult.status === 'fulfilled' && !packagesResult.value.error) setPackages((packagesResult.value.data || []).map(toPackage));
     if (verificationResult.status === 'fulfilled' && !verificationResult.value.error) setVerifications((verificationResult.value.data || []) as any);

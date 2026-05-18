@@ -20,7 +20,7 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
   const searchParams = useSearchParams();
   const next = useMemo(() => searchParams.get('next') || `/${country}/${lang}/dashboard`, [searchParams, country, lang]);
   const [name, setName] = useState('');
-  const [accountType, setAccountType] = useState<'investor' | 'owner' | 'both'>('investor');
+  const [accountType, setAccountType] = useState<'investor' | 'owner' | 'both' | ''>('');
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -48,6 +48,10 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
     const cleanName = name.trim();
     if (cleanName.length < 2) {
       setMessage(isAr ? 'اكتب اسمك الحقيقي للمتابعة.' : 'Enter your name to continue.');
+      return;
+    }
+    if (!accountType) {
+      setMessage(isAr ? 'اختر نوع الحساب للمتابعة.' : 'Choose your account type to continue.');
       return;
     }
 
@@ -117,7 +121,7 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
 
       {!!message && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{message}</p>}
 
-      <button disabled={loading || name.trim().length < 2} className="w-full rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
+      <button disabled={loading || name.trim().length < 2 || !accountType} className="w-full rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
         {loading ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ ومتابعة' : 'Save and continue')}
       </button>
     </form>
