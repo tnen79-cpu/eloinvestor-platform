@@ -1,6 +1,5 @@
-export const dynamic = 'force-dynamic';
-import { AdminVerifications } from '@/components/AdminVerifications';
+import { redirect } from 'next/navigation';
 
-export default function AdminVerificationsPage() {
-  return <AdminVerifications />;
+export default function OldAdminVerificationsRedirect() {
+  redirect('/eloinvestor-admin/verifications');
 }

@@ -542,7 +542,7 @@ function menuFor(owner: boolean, investor: boolean, admin: boolean, lang: string
     { id: 'activity', label: label('النشاط', 'Activity'), icon: Activity },
     { id: 'profile', label: label('الملف الشخصي', 'Profile'), icon: UserCircle },
   );
-  if (admin) items.push({ id: 'admin-panel', label: label('لوحة الإدارة', 'Admin panel'), icon: LockKeyhole, href: '/admin' });
+  if (admin) items.push({ id: 'admin-panel', label: label('لوحة الإدارة', 'Admin panel'), icon: LockKeyhole, href: '/eloinvestor-admin' });
   return items;
 }
 

@@ -649,6 +649,27 @@ export default function AdminDashboard() {
   const [paymentSettingsMessage, setPaymentSettingsMessage] = useState('');
 
   async function checkAdmin() {
+    // المسار الجديد للإدارة مستقل عن تسجيل دخول المستخدمين.
+    // هذا يحل مشكلة Firebase/Supabase session ويجعل دخول الإدارة عبر كلمة مرور خاصة.
+    try {
+      const response = await fetch('/api/admin-session', { cache: 'no-store' });
+      const json = await response.json().catch(() => ({}));
+      if (response.ok && json?.authenticated === true) {
+        setAccessDenied(false);
+        setAdmin({
+          id: 'admin-session',
+          email: 'admin@eloinvestor.local',
+          name: 'Admin',
+          role: 'super_admin',
+          permissions: { all: true },
+          isSuper: true,
+        });
+        return true;
+      }
+    } catch (error) {
+      console.warn('Admin password session check skipped:', error);
+    }
+
     const user = await getCurrentAppUser();
     if (!user) {
       setAccessDenied(true);
