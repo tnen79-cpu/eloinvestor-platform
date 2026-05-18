@@ -172,7 +172,35 @@ export async function POST(req: NextRequest) {
     // لا نرسل undefined في Supabase payload
     Object.keys(row).forEach((key) => row[key] === undefined && delete row[key]);
 
-    const profile = await upsertUserCompat(db, row, existing);
+    let profile = await upsertUserCompat(db, row, existing);
+
+    // IMPORTANT: Early Firebase attempts could create duplicate rows:
+    // one row by email/phone and another by firebase_uid. This made Admin show type=both
+    // while Dashboard loaded the firebase_uid row as investor. When onboarding is completed,
+    // update every matching row so all app surfaces read the same account_type/role.
+    if (requestedComplete && hasSubmittedAccountType) {
+      const patch: Record<string, any> = {
+        name,
+        display_name: name,
+        account_type: accountType,
+        type: accountType,
+        onboarding_completed: true,
+        profile_completed: true,
+        updated_at: new Date().toISOString(),
+      };
+      const matches = [
+        { column: 'firebase_uid', value: firebaseUser.uid },
+        { column: 'email', value: firebaseUser.email || body?.email || '' },
+        { column: 'phone', value: firebaseUser.phone || body?.phone || '' },
+      ].filter((item) => String(item.value || '').trim());
+
+      for (const item of matches) {
+        try { await db.from('users').update(patch).eq(item.column, item.value); } catch {}
+      }
+      const refreshed = await findExistingUser(db, firebaseUser, body);
+      if (refreshed) profile = refreshed;
+    }
+
     const isGenericName = !String(profile?.name || '').trim() || /^\+?\d+$/.test(String(profile?.name || '').trim()) || String(profile?.name || '').trim().toLowerCase() === 'user';
     const needs_onboarding = profile?.onboarding_completed !== true || isGenericName || !profile?.account_type;
 

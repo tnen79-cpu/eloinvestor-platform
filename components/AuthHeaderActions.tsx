@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, LayoutDashboard, PlusCircle, ShieldCheck, UserRound, BadgeCheck, MessageCircle } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, firebaseCompatibleUserQuery, signOutEverywhere } from '@/lib/auth-client';
+import { getCurrentAppProfile } from '@/lib/app-profile-client';
+import { signOutEverywhere } from '@/lib/auth-client';
 import { accountTypeLabel, canAddProjects, isAdminRole } from '@/lib/account';
 import { useI18n } from '@/components/I18nProvider';
 
@@ -37,7 +38,7 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
 
     async function loadUser() {
       setLoading(true);
-      const authUser = await getCurrentAppUser();
+      const { authUser, profile } = await getCurrentAppProfile();
 
       if (!mounted) return;
       if (!authUser) {
@@ -46,27 +47,13 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
         return;
       }
 
-      let role = authUser.user_metadata?.role || 'user';
-      let accountType = authUser.user_metadata?.account_type || 'investor';
-      let name = getUserName(authUser);
+      const role = (profile as any)?.role || (profile as any)?.admin_role || authUser.user_metadata?.role || 'user';
+      const rawType = String((profile as any)?.account_type || (profile as any)?.type || '').trim();
+      const accountType = ['investor', 'owner', 'both'].includes(rawType) ? rawType : 'investor';
+      const name = (profile as any)?.name || (profile as any)?.display_name || getUserName(authUser);
+      const email = (profile as any)?.email || authUser.email || '';
 
-      try {
-        const { data: profile } = await supabaseBrowser
-          .from('users')
-          .select('name,role,account_type,email,phone,firebase_uid,auth_id')
-          .or(firebaseCompatibleUserQuery(authUser))
-          .maybeSingle();
-
-        if (profile) {
-          name = (profile as any).name || name;
-          role = (profile as any).role || role;
-          accountType = (profile as any).account_type || accountType;
-        }
-      } catch (error) {
-        console.warn('User profile lookup failed:', error);
-      }
-
-      setUser({ id: authUser.id, email: authUser.email || '', name, role, accountType });
+      setUser({ id: authUser.id, email, name, role, accountType });
       setLoading(false);
     }
 
