@@ -47,6 +47,34 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
 
   const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
+  function isProfileComplete(profile: any) {
+    const name = String(profile?.name || '').trim();
+    const accountType = String(profile?.account_type || '').trim();
+    return Boolean(accountType && name && name !== fullPhone);
+  }
+
+  async function ensureProfile(userId: string) {
+    try {
+      const { data: existing } = await supabaseBrowser.from('users').select('name,account_type').eq('auth_id', userId).maybeSingle();
+      if (!existing) {
+        await supabaseBrowser.from('users').upsert({
+          auth_id: userId,
+          phone: fullPhone,
+          phone_country_code: countryCode,
+          role: 'user',
+          plan: 'free',
+          subscription_status: 'free',
+        }, { onConflict: 'auth_id' });
+        return false;
+      }
+      await supabaseBrowser.from('users').update({ phone: fullPhone, phone_country_code: countryCode }).eq('auth_id', userId);
+      return isProfileComplete(existing);
+    } catch (error) {
+      console.warn('Profile upsert after phone login failed:', error);
+      return false;
+    }
+  }
+
   async function sendOtp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -85,8 +113,9 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
       return;
     }
 
+    const complete = data.user ? await ensureProfile(data.user.id) : false;
     setLoading(false);
-    router.push(`/${country}/${lang}/dashboard`);
+    router.push(complete ? `/${country}/${lang}/dashboard` : `/${country}/${lang}/onboarding?next=${encodeURIComponent(`/${country}/${lang}/dashboard`)}`);
     router.refresh();
   }
 
@@ -96,7 +125,7 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
     const redirectTo = `${window.location.origin}/${country}/${lang}/auth/callback?next=/${country}/${lang}/dashboard`;
     const { error } = await supabaseBrowser.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo, queryParams: { prompt: 'select_account' } },
+      options: { redirectTo },
     });
     if (error) {
       setLoading(false);

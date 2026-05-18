@@ -78,7 +78,6 @@ type Profile = {
   bio?: string;
   location?: string;
   autoWelcomeMessage?: string;
-  needsCompletion?: boolean;
 };
 
 type DashboardProject = {
@@ -214,17 +213,11 @@ async function getProfile(): Promise<Profile | null> {
   } catch (error) {
     console.warn('Profile lookup failed:', error);
   }
-  const metaName = authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.user_metadata?.display_name || '';
-  const fallbackName = metaName || authUser.email?.split('@')[0] || authUser.phone || 'User';
-  const savedName = String(profile?.name || '').trim();
-  const savedAccountType = String(profile?.account_type || '').trim();
-  const needsCompletion = !savedName || !savedAccountType || savedName === authUser.email || savedName === authUser.phone;
-
   return {
     id: authUser.id,
-    name: savedName || fallbackName,
+    name: profile?.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
     email: profile?.email || authUser.email || '',
-    accountType: savedAccountType || authUser.user_metadata?.account_type || 'investor',
+    accountType: profile?.account_type || authUser.user_metadata?.account_type || 'investor',
     role: profile?.role || authUser.user_metadata?.role || 'user',
     plan: profile?.subscription_status || profile?.plan || 'starter',
     verificationStatus: profile?.verification_status || profile?.investor_verification_status || 'unverified',
@@ -240,7 +233,6 @@ async function getProfile(): Promise<Profile | null> {
     location: profile?.location || profile?.city || '',
     autoWelcomeMessage: profile?.auto_welcome_message || profile?.welcome_message || '',
     investorPreferences: typeof profile?.investor_preferences === 'object' && profile.investor_preferences ? profile.investor_preferences : {},
-    needsCompletion,
   };
 }
 
@@ -654,6 +646,11 @@ export function UserDashboardGate({ country, lang }: { country: string; lang: st
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
   }
 
+  async function logout() {
+    await supabaseBrowser.auth.signOut();
+    window.location.href = `/${country}/${lang}/login`;
+  }
+
   async function refreshDashboard() {
     if (!profile) return;
     const [userProjects, savedRows, contactedRows, activityRows, suggestedRows] = await Promise.all([
@@ -707,18 +704,13 @@ export function UserDashboardGate({ country, lang }: { country: string; lang: st
     );
   }
 
-
-  if (profile.needsCompletion) {
-    return <CompleteProfilePanel profile={profile} country={country} lang={lang} onSaved={(next) => setProfile(next)} />;
-  }
-
   return (
     <div className={`clean-dashboard ${isRtl ? 'is-rtl' : 'is-ltr'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-      <DashboardSidebar profile={profile} menu={menu} active={active} setActive={openTab} country={country} lang={lang} />
+      <DashboardSidebar profile={profile} menu={menu} active={active} setActive={openTab} country={country} lang={lang} onLogout={logout} />
       <main className="clean-main">
         <MobileDashboardBar profile={profile} active={active} menu={menu} setOpen={setMobileMenuOpen} country={country} lang={lang} />
         <MobileDashboardDrawer open={mobileMenuOpen} setOpen={setMobileMenuOpen} profile={profile} menu={menu} active={active} setActive={openTab} country={country} lang={lang} />
-        <DashboardHeader profile={profile} owner={owner} investor={investor} country={country} lang={lang} setActive={openTab} />
+        <DashboardHeader profile={profile} owner={owner} investor={investor} country={country} lang={lang} setActive={openTab} onLogout={logout} />
         <section className="clean-stats-grid">
           {owner && <Metric title="مشاريعي" value={stats.projects} caption={`${stats.published} منشور`} icon={BriefcaseBusiness} />}
           {owner && <Metric title="طلبات التواصل" value={stats.contacts} caption="من المستثمرين" icon={MessageCircle} />}
@@ -750,7 +742,7 @@ export function UserDashboardGate({ country, lang }: { country: string; lang: st
   );
 }
 
-function DashboardSidebar({ profile, menu, active, setActive, country, lang }: { profile: Profile; menu: MenuItem[]; active: Tab; setActive: (tab: Tab) => void; country: string; lang: string }) {
+function DashboardSidebar({ profile, menu, active, setActive, country, lang, onLogout }: { profile: Profile; menu: MenuItem[]; active: Tab; setActive: (tab: Tab) => void; country: string; lang: string; onLogout: () => void }) {
   return (
     <aside className="clean-sidebar">
       <Link href={`/${country}/${lang}`} className="clean-brand"><span>↗</span><strong>إلو مستثمر</strong></Link>
@@ -767,90 +759,12 @@ function DashboardSidebar({ profile, menu, active, setActive, country, lang }: {
         })}
       </nav>
       <button type="button" onClick={() => setActive('packages')} className="clean-upgrade"><span>ترقية الباقة</span><b>انشر مشاريع أكثر</b></button>
+      <button type="button" onClick={onLogout} className="clean-menu-item mt-3 w-full text-rose-700"><LogOut size={18} /><span>{lang === 'en' ? 'Logout' : 'تسجيل الخروج'}</span></button>
     </aside>
   );
 }
 
-
-function CompleteProfilePanel({ profile, country, lang, onSaved }: { profile: Profile; country: string; lang: string; onSaved: (profile: Profile) => void }) {
-  const isRtl = lang !== 'en';
-  const [name, setName] = useState(profile.name && profile.name !== profile.email && profile.name !== profile.phone ? profile.name : '');
-  const [accountType, setAccountType] = useState(profile.accountType || 'investor');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-
-  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const cleanName = name.trim();
-    if (cleanName.length < 2) {
-      setMessage(isRtl ? 'اكتب اسم مستخدم واضح.' : 'Please enter a valid username.');
-      return;
-    }
-
-    setSaving(true);
-    setMessage('');
-    const payload = {
-      auth_id: profile.id,
-      name: cleanName,
-      email: profile.email || null,
-      phone: profile.phone || null,
-      account_type: accountType,
-      role: profile.role || 'user',
-      plan: profile.plan || 'free',
-      subscription_status: profile.plan || 'free',
-    };
-
-    const { error } = await supabaseBrowser.from('users').upsert(payload, { onConflict: 'auth_id' });
-    setSaving(false);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    onSaved({ ...profile, name: cleanName, accountType, needsCompletion: false });
-  }
-
-  async function handleLogout() {
-    await supabaseBrowser.auth.signOut();
-    window.location.href = `/${country}/${lang}/login`;
-  }
-
-  return (
-    <main className="grid min-h-screen place-items-center bg-[#f5faf7] p-6" dir={isRtl ? 'rtl' : 'ltr'}>
-      <section className="w-full max-w-xl rounded-[2rem] border border-slate-100 bg-white p-7 shadow-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50 text-blue-700"><UserCircle size={30} /></div>
-          <h1 className="text-2xl font-black text-slate-950">{isRtl ? 'أكمل بيانات حسابك' : 'Complete your profile'}</h1>
-          <p className="mt-2 text-sm font-bold text-slate-500">{isRtl ? 'بعد أول دخول عبر Google أو الهاتف لازم نحدد الاسم ونوع الحساب.' : 'After first Google or phone login, please set your username and account type.'}</p>
-        </div>
-
-        <form onSubmit={handleSave} className="space-y-4">
-          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10" placeholder={isRtl ? 'اسم المستخدم' : 'Username'} required />
-          <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10">
-            <option value="investor">{isRtl ? 'مستثمر' : 'Investor'}</option>
-            <option value="owner">{isRtl ? 'صاحب مشروع' : 'Project owner'}</option>
-            <option value="both">{isRtl ? 'مستثمر وصاحب مشروع' : 'Investor and project owner'}</option>
-          </select>
-          {!!message && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{message}</p>}
-          <button disabled={saving || name.trim().length < 2} className="w-full rounded-2xl bg-blue-700 px-6 py-4 font-black text-white shadow-lg shadow-blue-900/10 disabled:cursor-not-allowed disabled:opacity-60">
-            {saving ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'حفظ ومتابعة' : 'Save and continue')}
-          </button>
-          <button type="button" onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-6 py-3 font-black text-slate-700">
-            <LogOut size={17} /> {isRtl ? 'تسجيل خروج' : 'Logout'}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
-}
-
-function DashboardHeader({ profile, owner, investor, country, lang, setActive }: { profile: Profile; owner: boolean; investor: boolean; country: string; lang: string; setActive: (tab: Tab) => void }) {
-  async function handleLogout() {
-    await supabaseBrowser.auth.signOut();
-    window.location.href = `/${country}/${lang}/login`;
-  }
-
+function DashboardHeader({ profile, owner, investor, country, lang, setActive, onLogout }: { profile: Profile; owner: boolean; investor: boolean; country: string; lang: string; setActive: (tab: Tab) => void; onLogout: () => void }) {
   return (
     <section className="clean-hero">
       <div>
@@ -863,7 +777,7 @@ function DashboardHeader({ profile, owner, investor, country, lang, setActive }:
         <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`}>صفحتي الشخصية</Link>
         {owner && <button type="button" onClick={() => setActive('add-project')}>إضافة مشروع</button>}
         {investor && <Link href={`/${country}/${lang}/opportunities`}>فرص الاستثمار</Link>}
-        <button type="button" onClick={handleLogout} className="border-rose-100 bg-rose-50 text-rose-700"><LogOut size={16} /> تسجيل خروج</button>
+        <button type="button" onClick={onLogout} className="!bg-white !text-rose-700"><LogOut size={16} /> {lang === 'en' ? 'Logout' : 'تسجيل الخروج'}</button>
       </div>
     </section>
   );
