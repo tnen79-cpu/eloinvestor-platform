@@ -22,31 +22,58 @@ function missingColumn(message: string) {
   return null;
 }
 
-async function upsertUserCompat(db: any, row: AnyRow) {
-  const uid = row.auth_id || row.firebase_uid;
-  let existing: any = null;
+function normalizeAccountType(value: unknown, fallback = 'investor') {
+  const raw = String(value || fallback || 'investor').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+  const map: Record<string, string> = {
+    investor: 'investor',
+    مستثمر: 'investor',
+    owner: 'owner',
+    seller: 'owner',
+    founder: 'owner',
+    project_owner: 'owner',
+    صاحب_مشروع: 'owner',
+    صاحب_المشروع: 'owner',
+    both: 'both',
+    owner_investor: 'both',
+    investor_owner: 'both',
+    investor_and_owner: 'both',
+    project_owner_and_investor: 'both',
+    مستثمر_وصاحب_مشروع: 'both',
+    مستثمر_صاحب_مشروع: 'both',
+  };
+  return map[raw] || (['investor', 'owner', 'both'].includes(raw) ? raw : 'investor');
+}
 
+function isAdminish(row: any) {
+  const role = String(row?.admin_role || row?.role || '').toLowerCase();
+  return row?.is_admin === true || ['admin', 'super_admin', 'verification_admin', 'content_admin', 'finance_admin', 'support_admin'].includes(role);
+}
+
+async function findExistingUser(db: any, firebaseUser: any, body: AnyRow = {}) {
+  const uid = firebaseUser.uid;
+  const email = String(firebaseUser.email || body?.email || '').trim().toLowerCase();
+  const phone = String(firebaseUser.phone || body?.phone || '').trim();
+  const candidates: Array<{ col: string; val: string }> = [];
+  if (uid) candidates.push({ col: 'firebase_uid', val: uid });
+  if (email) candidates.push({ col: 'email', val: email });
+  if (phone) candidates.push({ col: 'phone', val: phone });
+
+  // لا نبحث في auth_id إلا إذا كان Firebase UID على شكل UUID حتى لا نكسر قواعد قديمة.
   const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(uid || ''));
-  const byFirebase = await db.from('users').select('*').eq('firebase_uid', uid).maybeSingle();
-  if (!byFirebase.error && byFirebase.data) existing = byFirebase.data;
+  if (uuidLike) candidates.push({ col: 'auth_id', val: uid });
 
-  if (!existing && uuidLike) {
-    const byAuth = await db.from('users').select('*').eq('auth_id', uid).maybeSingle();
-    if (!byAuth.error && byAuth.data) existing = byAuth.data;
+  for (const item of candidates) {
+    const { data, error } = await db.from('users').select('*').eq(item.col, item.val).maybeSingle();
+    if (!error && data) return data;
   }
+  return null;
+}
 
-  if (!existing && row.email) {
-    const byEmail = await db.from('users').select('*').eq('email', row.email).maybeSingle();
-    if (!byEmail.error && byEmail.data) existing = byEmail.data;
-  }
-
-  if (!existing && row.phone) {
-    const byPhone = await db.from('users').select('*').eq('phone', row.phone).maybeSingle();
-    if (!byPhone.error && byPhone.data) existing = byPhone.data;
-  }
-
+async function upsertUserCompat(db: any, row: AnyRow, existingRow?: AnyRow | null) {
+  let existing: any = existingRow || null;
   const current: AnyRow = { ...row };
-  for (let attempt = 0; attempt < 25; attempt += 1) {
+
+  for (let attempt = 0; attempt < 35; attempt += 1) {
     const query = existing?.id
       ? db.from('users').update(current).eq('id', existing.id).select('*').maybeSingle()
       : db.from('users').insert(current).select('*').maybeSingle();
@@ -60,9 +87,11 @@ async function upsertUserCompat(db: any, row: AnyRow) {
       continue;
     }
     if (/duplicate key|violates unique constraint/i.test(message) && !existing) {
-      const retry = await db.from('users').select('*').eq('firebase_uid', uid).maybeSingle();
-      if (!retry.error && retry.data) existing = retry.data;
-      continue;
+      const retry = await findExistingUser(db, { uid: row.firebase_uid, email: row.email, phone: row.phone }, row);
+      if (retry) {
+        existing = retry;
+        continue;
+      }
     }
     throw new Error(message || 'Profile save failed');
   }
@@ -79,22 +108,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const meta = firebaseUser.user_metadata || {};
     const db = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-
-    const lookup = await db
-      .from('users')
-      .select('*')
-      .eq('firebase_uid', firebaseUser.uid)
-      .maybeSingle();
-    const existing = !lookup.error ? lookup.data : null;
+    const existing = await findExistingUser(db, firebaseUser, body);
 
     const requestedComplete = body?.complete_onboarding === true || body?.onboarding_completed === true;
     const bodyName = String(body?.name || '').trim();
     const fallbackName = String(meta.name || meta.full_name || meta.display_name || firebaseUser.phone || firebaseUser.email || 'User').trim();
     const name = bodyName || existing?.name || fallbackName;
-    const accountType = body?.account_type || body?.accountType || existing?.account_type || 'investor';
+
+    const submittedAccountType = body?.account_type ?? body?.accountType;
+    const accountType = normalizeAccountType(submittedAccountType ?? existing?.account_type ?? 'investor');
     const onboardingCompleted = requestedComplete || existing?.onboarding_completed === true || false;
 
     const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firebaseUser.uid);
+    const existingIsAdmin = isAdminish(existing);
+    const existingRole = existing?.role || null;
+    const existingAdminRole = existing?.admin_role || null;
+    const existingAdminStatus = existing?.admin_status || null;
+
     const row: Record<string, any> = {
       ...(uuidLike ? { auth_id: firebaseUser.uid } : {}),
       firebase_uid: firebaseUser.uid,
@@ -103,8 +133,12 @@ export async function POST(req: NextRequest) {
       email: firebaseUser.email || body?.email || existing?.email || null,
       phone: firebaseUser.phone || body?.phone || existing?.phone || null,
       phone_country_code: body?.phone_country_code || body?.countryCode || existing?.phone_country_code || null,
-      account_type: accountType,
-      role: existing?.role || body?.role || 'user',
+      account_type: existingIsAdmin ? (existing?.account_type || 'both') : accountType,
+      role: existingIsAdmin ? (existingRole || 'admin') : (existingRole && String(existingRole).includes('admin') ? existingRole : 'user'),
+      admin_role: existingIsAdmin ? (existingAdminRole || existingRole || 'admin') : existingAdminRole,
+      is_admin: existingIsAdmin ? true : existing?.is_admin,
+      admin_status: existingIsAdmin ? (existingAdminStatus || 'active') : existingAdminStatus,
+      admin_permissions: existing?.admin_permissions || undefined,
       plan: existing?.plan || 'free',
       subscription_status: existing?.subscription_status || 'free',
       avatar_url: meta.avatar_url || existing?.avatar_url || null,
@@ -114,7 +148,10 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    const profile = await upsertUserCompat(db, row);
+    // لا نرسل undefined في Supabase payload
+    Object.keys(row).forEach((key) => row[key] === undefined && delete row[key]);
+
+    const profile = await upsertUserCompat(db, row, existing);
     const isGenericName = !String(profile?.name || '').trim() || /^\+?\d+$/.test(String(profile?.name || '').trim()) || String(profile?.name || '').trim().toLowerCase() === 'user';
     const needs_onboarding = profile?.onboarding_completed !== true || isGenericName || !profile?.account_type;
 

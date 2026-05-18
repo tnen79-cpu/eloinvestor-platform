@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
+import { getFirebaseIdToken } from '@/lib/firebase-client';
 import { AnalyticsBars } from '@/components/AnalyticsBars';
 import { isAdminRole } from '@/lib/account';
 import { flattenDefaultTranslations } from '@/lib/i18n';
@@ -656,9 +657,30 @@ export default function AdminDashboard() {
     }
 
     let profile: any = null;
-    const rpcProfile = await supabaseBrowser.rpc('admin_get_my_profile');
-    if (!rpcProfile.error && Array.isArray(rpcProfile.data) && rpcProfile.data[0]) {
-      profile = rpcProfile.data[0];
+
+    // Firebase users do not have a Supabase session, so read the profile through
+    // the secure API first. It uses the Firebase ID token + service role and also
+    // preserves admin roles linked by firebase_uid/email.
+    try {
+      const firebaseToken = await getFirebaseIdToken();
+      if (firebaseToken) {
+        const response = await fetch('/api/auth/firebase-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${firebaseToken}` },
+          body: JSON.stringify({ login_source: 'admin_check' }),
+        });
+        const json = await response.json().catch(() => ({}));
+        if (response.ok && json?.profile) profile = json.profile;
+      }
+    } catch (error) {
+      console.warn('Firebase admin profile lookup skipped:', error);
+    }
+
+    if (!profile) {
+      const rpcProfile = await supabaseBrowser.rpc('admin_get_my_profile');
+      if (!rpcProfile.error && Array.isArray(rpcProfile.data) && rpcProfile.data[0]) {
+        profile = rpcProfile.data[0];
+      }
     }
 
     if (!profile) {
