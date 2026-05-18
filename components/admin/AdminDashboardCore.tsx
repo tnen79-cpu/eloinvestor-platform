@@ -658,22 +658,39 @@ export default function AdminDashboard() {
 
     let profile: any = null;
 
-    // Firebase users do not have a Supabase session, so read the profile through
-    // the secure API first. It uses the Firebase ID token + service role and also
-    // preserves admin roles linked by firebase_uid/email.
+    // Firebase admin check MUST use a server API with service role.
+    // Client-side Supabase queries may be blocked by RLS and Firebase UID is not a UUID.
     try {
       const firebaseToken = await getFirebaseIdToken();
       if (firebaseToken) {
-        const response = await fetch('/api/auth/firebase-profile', {
+        const response = await fetch('/api/auth/firebase-admin-check', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${firebaseToken}` },
-          body: JSON.stringify({ login_source: 'admin_check' }),
+          headers: { Authorization: `Bearer ${firebaseToken}` },
+          cache: 'no-store',
         });
         const json = await response.json().catch(() => ({}));
-        if (response.ok && json?.profile) profile = json.profile;
+        if (response.ok && json?.allowed && json?.profile) profile = json.profile;
       }
     } catch (error) {
-      console.warn('Firebase admin profile lookup skipped:', error);
+      console.warn('Firebase admin check skipped:', error);
+    }
+
+    // If the user is not admin, still sync/create normal profile without overwriting admin roles.
+    if (!profile) {
+      try {
+        const firebaseToken = await getFirebaseIdToken();
+        if (firebaseToken) {
+          const response = await fetch('/api/auth/firebase-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${firebaseToken}` },
+            body: JSON.stringify({ login_source: 'admin_check' }),
+          });
+          const json = await response.json().catch(() => ({}));
+          if (response.ok && json?.profile) profile = json.profile;
+        }
+      } catch (error) {
+        console.warn('Firebase profile lookup skipped:', error);
+      }
     }
 
     if (!profile) {

@@ -131,7 +131,12 @@ export async function POST(req: NextRequest) {
     const name = bodyName || existing?.name || fallbackName;
 
     const submittedAccountType = body?.account_type ?? body?.accountType;
-    const accountType = normalizeAccountType(submittedAccountType ?? existing?.account_type ?? 'investor');
+    const hasSubmittedAccountType = typeof submittedAccountType === 'string' && submittedAccountType.trim().length > 0;
+    // أثناء إكمال الحساب يجب احترام اختيار المستخدم حرفياً.
+    // أثناء login العادي لا نرجع الحساب إلى investor إذا كان محفوظ owner/both سابقاً.
+    const accountType = hasSubmittedAccountType
+      ? normalizeAccountType(submittedAccountType)
+      : normalizeAccountType(existing?.account_type || 'investor');
     const onboardingCompleted = requestedComplete || existing?.onboarding_completed === true || false;
 
     const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firebaseUser.uid);
