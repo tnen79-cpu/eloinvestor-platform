@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getSupabaseUserFromBearer } from '@/lib/auth-server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -24,10 +23,10 @@ export async function getUser(req: NextRequest) {
   const authHeader = req.headers.get('authorization') || '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   if (!token) throw Object.assign(new Error('يجب تسجيل الدخول أولًا.'), { status: 401 });
-  const { db } = clients(token);
-  const authResult = await getSupabaseUserFromBearer(token);
-  if (!authResult.user) throw Object.assign(new Error('جلسة الدخول غير صالحة.'), { status: 401 });
-  return { user: authResult.user, token, db };
+  const { authClient, db } = clients(token);
+  const { data, error } = await authClient.auth.getUser(token);
+  if (error || !data.user) throw Object.assign(new Error('جلسة الدخول غير صالحة.'), { status: 401 });
+  return { user: data.user, token, db };
 }
 
 export async function isAdmin(db: any, user: any) {

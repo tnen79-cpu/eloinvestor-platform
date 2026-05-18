@@ -134,7 +134,7 @@ export function AdminVerifications() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={load} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-200"><RefreshCcw className="h-4 w-4" /> تحديث</button>
-            <Link href="/eloinvestor-admin" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white">لوحة الإدارة</Link>
+            <Link href="/admin" className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white">لوحة الإدارة</Link>
           </div>
         </div>
       </section>

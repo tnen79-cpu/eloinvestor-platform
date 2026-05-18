@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, userProfileQuery } from '@/lib/auth-client';
 import { AddProjectForm } from '@/components/AddProjectForm';
 import { canAddProjects } from '@/lib/account';
 import { useI18n } from '@/components/I18nProvider';
@@ -18,8 +17,9 @@ export function ProtectedAddProject({ country, lang }: { country: string; lang: 
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const authUser = await getCurrentAppUser(1500);
+      const { data } = await supabaseBrowser.auth.getUser();
       if (!mounted) return;
+      const authUser = data.user;
       setIsLoggedIn(Boolean(authUser));
 
       if (authUser) {
@@ -29,7 +29,7 @@ export function ProtectedAddProject({ country, lang }: { country: string; lang: 
           const { data: profile } = await supabaseBrowser
             .from('users')
             .select('role,account_type')
-            .or(userProfileQuery(authUser))
+            .eq('auth_id', authUser.id)
             .maybeSingle();
           accountType = (profile as any)?.account_type || accountType;
           role = (profile as any)?.role || role;

@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, LayoutDashboard, PlusCircle, ShieldCheck, UserRound, BadgeCheck, MessageCircle } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, userProfileQuery, signOutEverywhere } from '@/lib/auth-client';
 import { accountTypeLabel, canAddProjects, isAdminRole } from '@/lib/account';
 import { useI18n } from '@/components/I18nProvider';
 
@@ -37,7 +36,8 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
 
     async function loadUser() {
       setLoading(true);
-      const authUser = await getCurrentAppUser();
+      const { data } = await supabaseBrowser.auth.getUser();
+      const authUser = data?.user;
 
       if (!mounted) return;
       if (!authUser) {
@@ -53,8 +53,8 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
       try {
         const { data: profile } = await supabaseBrowser
           .from('users')
-          .select('name,role,account_type,email,phone,auth_id')
-          .or(userProfileQuery(authUser))
+          .select('name,role,account_type')
+          .eq('auth_id', authUser.id)
           .maybeSingle();
 
         if (profile) {
@@ -90,7 +90,7 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
   }, [open]);
 
   async function logout() {
-    await signOutEverywhere();
+    await supabaseBrowser.auth.signOut();
     setUser(null);
     setOpen(false);
     router.push(`/${country}/${lang}`);
@@ -146,7 +146,7 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
             <MessageCircle size={17} /> {t('auth', 'messages', isAr ? 'المحادثات' : 'Messages')}
           </Link>
           {isAdminRole(user.role) && (
-            <Link href="/eloinvestor-admin" className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+            <Link href="/admin" className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
               <ShieldCheck size={17} /> {t('auth', 'admin', isAr ? 'لوحة الإدارة' : 'Admin')}
             </Link>
           )}

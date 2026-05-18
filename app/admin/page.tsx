@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation';
+export const dynamic = 'force-dynamic';
+import AdminDashboard from '@/components/AdminDashboard';
 
-export default function OldAdminRedirect() {
-  redirect('/eloinvestor-admin/login');
+export default function AdminPage() {
+  return <AdminDashboard />;
 }

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, MessageCircle, PhoneCall, LockKeyhole, Send } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, userProfileQuery } from '@/lib/auth-client';
 import { canInvest } from '@/lib/account';
 import { trackPromotionMetric } from '@/lib/promotion-analytics';
 
@@ -25,20 +24,6 @@ function cleanPhone(phone?: string) {
   return String(phone || '').replace(/[^0-9+]/g, '').replace(/^00/, '+');
 }
 
-function isUuidLike(value?: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
-}
-
-function ownerLookupQuery(ownerId?: string) {
-  const raw = String(ownerId || '').trim();
-  if (!raw) return 'id.eq.__none__';
-  const safe = raw.replace(/,/g, '\,').replace(/\)/g, '\)').replace(/\(/g, '\(');
-  const parts: string[] = [];
-  if (isUuidLike(raw)) parts.push(`auth_id.eq.${safe}`, `id.eq.${safe}`);
-  else parts.push(`profile_slug.eq.${safe}`, `email.eq.${safe}`);
-  return parts.join(',');
-}
-
 export function ContactActions({ country, lang, projectId, projectTitle, ownerId, whatsapp, projectSnapshot, showWhatsapp = true, isSponsored = false }: Props) {
   const router = useRouter();
   const isAr = lang === 'ar';
@@ -46,7 +31,8 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
   const [error, setError] = useState('');
 
   async function getCurrentUser() {
-    return await getCurrentAppUser(1500);
+    const { data } = await supabaseBrowser.auth.getUser();
+    return data.user;
   }
 
   async function ensureConversation(action: 'chat' | 'whatsapp' | 'call') {
@@ -66,7 +52,7 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
         const { data: profile } = await supabaseBrowser
           .from('users')
           .select('role,account_type')
-          .or(userProfileQuery(user))
+          .eq('auth_id', user.id)
           .maybeSingle();
         accountType = (profile as any)?.account_type || accountType;
         role = (profile as any)?.role || role;
@@ -94,7 +80,7 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
         const { data: ownerProfile } = await supabaseBrowser
           .from('users')
           .select('auto_welcome_message,welcome_message,name')
-          .or(ownerLookupQuery(ownerId))
+          .eq('auth_id', ownerId)
           .maybeSingle();
         ownerWelcomeMessage = String((ownerProfile as any)?.auto_welcome_message || (ownerProfile as any)?.welcome_message || '').trim();
       } catch (welcomeLookupError) {

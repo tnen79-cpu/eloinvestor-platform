@@ -43,7 +43,6 @@ import {
   Home,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, userProfileQuery, getSupabaseAccessToken } from '@/lib/auth-client';
 import { AnalyticsBars } from '@/components/AnalyticsBars';
 import { isAdminRole } from '@/lib/account';
 import { flattenDefaultTranslations } from '@/lib/i18n';
@@ -648,28 +647,8 @@ export default function AdminDashboard() {
   const [paymentSettingsMessage, setPaymentSettingsMessage] = useState('');
 
   async function checkAdmin() {
-    // المسار الجديد للإدارة مستقل عن تسجيل دخول المستخدمين.
-    // هذا يحل مشكلة Supabase session ويجعل دخول الإدارة عبر كلمة مرور خاصة.
-    try {
-      const response = await fetch('/api/admin-session', { cache: 'no-store' });
-      const json = await response.json().catch(() => ({}));
-      if (response.ok && json?.authenticated === true) {
-        setAccessDenied(false);
-        setAdmin({
-          id: 'admin-session',
-          email: 'admin@eloinvestor.local',
-          name: 'Admin',
-          role: 'super_admin',
-          permissions: { all: true },
-          isSuper: true,
-        });
-        return true;
-      }
-    } catch (error) {
-      console.warn('Admin password session check skipped:', error);
-    }
-
-    const user = await getCurrentAppUser();
+    const { data: userData } = await supabaseBrowser.auth.getUser();
+    const user = userData.user;
     if (!user) {
       setAccessDenied(true);
       setLoading(false);
@@ -677,36 +656,16 @@ export default function AdminDashboard() {
     }
 
     let profile: any = null;
-
-    // Supabase admin check uses the server API with service role.
-    // Client-side Supabase queries may be blocked by RLS.
-    try {
-      const accessToken = await getSupabaseAccessToken();
-      if (accessToken) {
-        const response = await fetch('/api/auth/supabase-admin-check', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: 'no-store',
-        });
-        const json = await response.json().catch(() => ({}));
-        if (response.ok && json?.allowed && json?.profile) profile = json.profile;
-      }
-    } catch (error) {
-      console.warn('Supabase admin check skipped:', error);
-    }
-
-    if (!profile) {
-      const rpcProfile = await supabaseBrowser.rpc('admin_get_my_profile');
-      if (!rpcProfile.error && Array.isArray(rpcProfile.data) && rpcProfile.data[0]) {
-        profile = rpcProfile.data[0];
-      }
+    const rpcProfile = await supabaseBrowser.rpc('admin_get_my_profile');
+    if (!rpcProfile.error && Array.isArray(rpcProfile.data) && rpcProfile.data[0]) {
+      profile = rpcProfile.data[0];
     }
 
     if (!profile) {
       const directProfile = await supabaseBrowser
         .from('users')
         .select('*')
-        .or(userProfileQuery(user))
+        .or(`auth_id.eq.${user.id},id.eq.${user.id},email.eq.${user.email}`)
         .maybeSingle();
       if (!directProfile.error) profile = directProfile.data;
     }
@@ -889,29 +848,12 @@ export default function AdminDashboard() {
       const raw = String((publishModeSettingResult.value.data as any)?.value ?? 'manual').toLowerCase();
       setProjectPublishMode(['auto', 'automatic', 'approved', 'published'].includes(raw) ? 'auto' : 'manual');
     }
-    if (usersResult.status === 'fulfilled' && !usersResult.value.error && Array.isArray(usersResult.value.data) && usersResult.value.data.length) {
+    if (usersResult.status === 'fulfilled' && !usersResult.value.error) {
       setUsers(usersResult.value.data || []);
     } else {
-      let loadedUsers = false;
-      try {
-        const accessToken = await getSupabaseAccessToken();
-        const response = await fetch('/api/admin/users', {
-          cache: 'no-store',
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-        });
-        const json = await response.json().catch(() => ({}));
-        if (response.ok && Array.isArray(json?.users)) {
-          setUsers(json.users);
-          loadedUsers = true;
-        }
-      } catch (error) {
-        console.warn('Admin users API failed:', error);
-      }
-      if (!loadedUsers) {
-        const rpcUsers = await supabaseBrowser.rpc('admin_get_users');
-        if (!rpcUsers.error) setUsers(rpcUsers.data || []);
-        else setNotice({ type: 'error', text: `لم يتم تحميل المستخدمين: ${rpcUsers.error.message}` });
-      }
+      const rpcUsers = await supabaseBrowser.rpc('admin_get_users');
+      if (!rpcUsers.error) setUsers(rpcUsers.data || []);
+      else setNotice({ type: 'error', text: `لم يتم تحميل المستخدمين: ${rpcUsers.error.message}` });
     }
     if (packagesResult.status === 'fulfilled' && !packagesResult.value.error) setPackages((packagesResult.value.data || []).map(toPackage));
     if (verificationResult.status === 'fulfilled' && !verificationResult.value.error) setVerifications((verificationResult.value.data || []) as any);
