@@ -85,6 +85,7 @@ export function Header({ country, lang, countries, languages = [], translations 
               <Link href={`/${c.code}/${lang}/reels`} onClick={() => setMobileOpen(false)}>{isAr ? 'ريلز المشاريع' : 'Project reels'}</Link>
               <Link href={`/${c.code}/${lang}/packages`} onClick={() => setMobileOpen(false)}>{tr('common', 'packages', isAr ? 'الباقات' : 'Packages')}</Link>
               <Link href={`/${c.code}/${lang}/dashboard`} onClick={() => setMobileOpen(false)}>{isAr ? 'لوحة التحكم' : 'Dashboard'}</Link>
+              <Link href={`/${c.code}/${lang}/dashboard?tab=notifications`} onClick={() => setMobileOpen(false)}>{isAr ? 'الإشعارات' : 'Notifications'}</Link>
               <Link href={`/${c.code}/${lang}/add-project`} className="primary" onClick={() => setMobileOpen(false)}>{`+ ${tr('common', 'add_listing', isAr ? 'أضف مشروعك' : 'Add project')}`}</Link>
             </nav>
             <div className="mh-mobile-drawer-tools">

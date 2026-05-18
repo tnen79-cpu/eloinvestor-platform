@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MessageCircle, Plus, Search, Sparkles } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, Plus, Search, Sparkles } from 'lucide-react';
 
 export function MobileActionDock({ country, lang }: { country: string; lang: string }) {
   const isAr = lang === 'ar';
@@ -11,6 +11,7 @@ export function MobileActionDock({ country, lang }: { country: string; lang: str
       <Link href={`/${country}/${lang}/suggested`}><Sparkles size={18} /><span>{isAr ? 'مقترحة' : 'For you'}</span></Link>
       <Link className="primary" href={`/${country}/${lang}/add-project`}><Plus size={22} /></Link>
       <Link href={`/${country}/${lang}/messages`}><MessageCircle size={18} /><span>{isAr ? 'الشات' : 'Chat'}</span></Link>
+      <Link href={`/${country}/${lang}/dashboard`}><LayoutDashboard size={18} /><span>{isAr ? 'حسابي' : 'Account'}</span></Link>
     </div>
   );
 }

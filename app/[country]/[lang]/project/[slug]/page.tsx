@@ -159,6 +159,27 @@ export default async function ProjectDetailsPage({
     country_code: activeCountry.code,
   };
 
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://eloinvestor.com').replace(/\/$/, '');
+  const projectUrl = `${siteUrl}/${activeCountry.code}/${lang}/project/${encodeURIComponent(p.slug || projectId)}`;
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: title,
+    description: shortenText(summary || title, 300),
+    image: gallery[0] || p.image || undefined,
+    url: projectUrl,
+    category: categoryLabel,
+    brand: { '@type': 'Brand', name: 'EloInvestor' },
+    offers: {
+      '@type': 'Offer',
+      price: Number(p.price || 0),
+      priceCurrency: activeCountry.currency || 'OMR',
+      availability: 'https://schema.org/InStock',
+      url: projectUrl,
+    },
+    areaServed: displayLocation || activeCountry.nameEn || activeCountry.nameAr || activeCountry.code,
+  };
+
   const ownerBlock = (
     <div className="project-owner-line">
       <span className="project-owner-avatar">
@@ -177,6 +198,7 @@ export default async function ProjectDetailsPage({
 
   return (
     <main className="project-details-v34" dir={isAr ? 'rtl' : 'ltr'}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <ProjectViewTracker projectId={projectId} isSponsored={Boolean(p.isSponsored)} />
 
       <nav className="project-breadcrumb-v34">

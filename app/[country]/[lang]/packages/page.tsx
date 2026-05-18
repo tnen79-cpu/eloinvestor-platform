@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { CheckCircle2, Crown, Sparkles, Zap } from 'lucide-react';
+import { PackageSubscribeButton } from '@/components/PackageSubscribeButton';
 import { getCountryByCode } from '@/lib/server-data';
 import { supabase } from '@/lib/supabase';
 
@@ -85,9 +86,7 @@ export default async function PackagesPage({ params }: { params: Promise<{ count
                   <p key={feature} className="flex items-center gap-2 text-sm font-bold text-[var(--brand-ink-2)]"><CheckCircle2 className="h-4 w-4 text-[var(--brand-accent)]" /> {feature}</p>
                 ))}
               </div>
-              <Link href={`/${activeCountry.code}/${lang}/dashboard`} className={`mt-6 flex w-full items-center justify-center rounded-2xl px-5 py-4 font-black ${isFeatured ? 'bg-[var(--brand-accent)] text-white' : 'bg-[var(--brand-accent-light)] text-[var(--brand-accent)]'}`}>
-                {isAr ? 'اختيار الباقة' : 'Choose plan'}
-              </Link>
+              <PackageSubscribeButton planCode={(pkg as any).code || pkg.id || pkg.name_en || pkg.name_ar} fallbackCode={pkg.id || pkg.name_en || pkg.name_ar} country={activeCountry.code} lang={lang} featured={isFeatured} label={isAr ? 'اختيار الباقة والدفع' : 'Choose plan and pay'} />
             </article>
           );
         }) : (

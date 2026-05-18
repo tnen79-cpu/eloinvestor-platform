@@ -38,7 +38,7 @@ export function SiteFooter({ country, lang }: { country: string; lang: string })
       </div>
       <div className="mh-footer-bottom">
         <span>© 2026 {t('footer', 'rights')}</span>
-        <div><a>X</a><a>Instagram</a><a>LinkedIn</a><a>WhatsApp</a></div>
+        <div><a href="https://x.com" target="_blank" rel="noreferrer">X</a><a href="https://instagram.com" target="_blank" rel="noreferrer">Instagram</a><a href="https://linkedin.com" target="_blank" rel="noreferrer">LinkedIn</a><a href="https://wa.me/96800000000" target="_blank" rel="noreferrer">WhatsApp</a></div>
       </div>
     </footer>
   );

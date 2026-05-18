@@ -146,7 +146,7 @@ export function AuthHeaderActions({ country, lang, labels }: { country: string; 
             <MessageCircle size={17} /> {t('auth', 'messages', isAr ? 'المحادثات' : 'Messages')}
           </Link>
           {isAdminRole(user.role) && (
-            <Link href="/admin" className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
+            <Link href={`/${country}/${lang}/admin`} className="auth-user-menu-item flex items-center gap-3 rounded-2xl px-4 py-3 font-bold text-slate-700 hover:bg-blue-50">
               <ShieldCheck size={17} /> {t('auth', 'admin', isAr ? 'لوحة الإدارة' : 'Admin')}
             </Link>
           )}

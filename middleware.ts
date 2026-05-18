@@ -7,6 +7,7 @@ const ROOT_ROUTES = new Set([
   'add-project',
   'login',
   'register',
+  'onboarding',
   'dashboard',
   'verification',
   'messages',

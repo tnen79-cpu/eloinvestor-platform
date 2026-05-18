@@ -517,7 +517,7 @@ async function updateUserWithFallback(userId: string, payload: Record<string, an
   }
 }
 
-function menuFor(owner: boolean, investor: boolean, admin: boolean, lang: string): MenuItem[] {
+function menuFor(owner: boolean, investor: boolean, admin: boolean, lang: string, country: string): MenuItem[] {
   const isAr = lang !== 'en';
   const label = (ar: string, en: string) => (isAr ? ar : en);
   const items: MenuItem[] = [{ id: 'overview', label: label('نظرة عامة', 'Overview'), icon: Home }];
@@ -541,7 +541,7 @@ function menuFor(owner: boolean, investor: boolean, admin: boolean, lang: string
     { id: 'activity', label: label('النشاط', 'Activity'), icon: Activity },
     { id: 'profile', label: label('الملف الشخصي', 'Profile'), icon: UserCircle },
   );
-  if (admin) items.push({ id: 'admin-panel', label: label('لوحة الإدارة', 'Admin panel'), icon: LockKeyhole, href: '/admin' });
+  if (admin) items.push({ id: 'admin-panel', label: label('لوحة الإدارة', 'Admin panel'), icon: LockKeyhole, href: `/${country}/${lang}/admin` });
   return items;
 }
 
@@ -632,7 +632,7 @@ export function UserDashboardGate({ country, lang }: { country: string; lang: st
   const investor = canInvest(profile?.accountType, profile?.role);
   const isRtl = lang !== 'en';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const menu = useMemo(() => menuFor(owner, investor, admin, lang), [owner, investor, admin, lang]);
+  const menu = useMemo(() => menuFor(owner, investor, admin, lang, country), [owner, investor, admin, lang, country]);
 
   function openTab(tab: Tab) {
     if (tab !== 'add-project') setEditingProjectId('');
@@ -758,7 +758,7 @@ function DashboardSidebar({ profile, menu, active, setActive, country, lang, onL
           return <button key={`${item.id}-${index}`} onClick={() => setActive(item.id)} className={`clean-menu-item ${active === item.id ? 'active' : ''}`}><Icon size={18} /><span>{item.label}</span></button>;
         })}
       </nav>
-      <button type="button" onClick={() => setActive('packages')} className="clean-upgrade"><span>ترقية الباقة</span><b>انشر مشاريع أكثر</b></button>
+      <button type="button" onClick={() => setActive('packages')} className="clean-upgrade"><span>{lang === 'en' ? 'Upgrade plan' : 'ترقية الباقة'}</span><b>{lang === 'en' ? 'Publish more projects' : 'انشر مشاريع أكثر'}</b></button>
       <button type="button" onClick={onLogout} className="clean-menu-item mt-3 w-full text-rose-700"><LogOut size={18} /><span>{lang === 'en' ? 'Logout' : 'تسجيل الخروج'}</span></button>
     </aside>
   );
@@ -1360,8 +1360,8 @@ function MobileDashboardDrawer({ open, setOpen, profile, menu, active, setActive
           <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق"><X size={20} /></button>
         </div>
         <nav className="clean-mobile-drawer-menu">
-          <Link href={`/${country}/${lang}`} onClick={() => setOpen(false)}><Home size={18} /><span>الرئيسية</span></Link>
-          <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`} onClick={() => setOpen(false)}><UserCircle size={18} /><span>صفحتي الشخصية</span></Link>
+          <Link href={`/${country}/${lang}`} onClick={() => setOpen(false)}><Home size={18} /><span>{lang === 'en' ? 'Home' : 'الرئيسية'}</span></Link>
+          <Link href={`/${country}/${lang}/profile/${encodeURIComponent(profile.id)}`} onClick={() => setOpen(false)}><UserCircle size={18} /><span>{lang === 'en' ? 'Public profile' : 'صفحتي الشخصية'}</span></Link>
           {menu.filter((item) => !item.href).map((item, index) => {
             const Icon = item.icon;
             return <button key={`${item.id}-${index}`} type="button" onClick={() => setActive(item.id)} className={active === item.id ? 'active' : ''}><Icon size={18} /><span>{item.label}</span></button>;
