@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, CreditCard, FileText, ImagePlus, Loader2, LockKeyhole, MapPin, Megaphone, Navigation, ShieldCheck, Sparkles, UploadCloud, Wand2, Video, X } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
 import { useI18n } from '@/components/I18nProvider';
 
 type FormState = {
@@ -517,10 +518,10 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
     let mounted = true;
     async function loadUserPlan() {
       try {
-        const { data } = await supabaseBrowser.auth.getUser();
-        const userId = data.user?.id;
+        const appUser = await getCurrentAppUser(1500);
+        const userId = appUser?.id;
         if (!userId) return;
-        const { data: profile } = await supabaseBrowser.from('users').select('subscription_status,plan').eq('auth_id', userId).maybeSingle();
+        const { data: profile } = await supabaseBrowser.from('users').select('subscription_status,plan').or(firebaseCompatibleUserQuery({ id: userId })).maybeSingle();
         if (mounted) setUserPlan(String((profile as any)?.subscription_status || (profile as any)?.plan || 'free'));
       } catch (error) {
         console.warn('Plan lookup skipped:', error);
@@ -576,8 +577,8 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
       setLoadingProject(true);
       setError('');
       try {
-        const { data: userData } = await supabaseBrowser.auth.getUser();
-        const userId = userData.user?.id;
+        const appUser = await getCurrentAppUser(1500);
+        const userId = appUser?.id;
         if (!userId) throw new Error(t('add_project', 'login_first', isAr ? 'يجب تسجيل الدخول أولًا.' : 'Please login first.'));
         const { data, error } = await supabaseBrowser.from('projects').select('*').eq('id', editProjectId).maybeSingle();
         if (error) throw error;
@@ -905,10 +906,10 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
     setSubmitting(true);
 
     try {
-      const { data: userData, error: userError } = await supabaseBrowser.auth.getUser();
-      if (userError || !userData.user) throw new Error(t('add_project', 'login_first', isAr ? 'يجب تسجيل الدخول أولًا.' : 'Please login first.'));
+      const appUser = await getCurrentAppUser(1500);
+      if (!appUser) throw new Error(t('add_project', 'login_first', isAr ? 'يجب تسجيل الدخول أولًا.' : 'Please login first.'));
 
-      const uploaded = images.length ? await uploadProjectImages(images, userData.user.id) : [];
+      const uploaded = images.length ? await uploadProjectImages(images, appUser.id) : [];
       const existingCover = images.find((item) => item.isCover && item.existing)?.url || '';
       const cover = uploaded.find((item) => item.isCover)?.url || uploaded[0]?.url || existingCover || images[0]?.url || '';
       const slug = isEditing ? undefined : `${slugify(form.title)}-${Date.now().toString(36)}`;
@@ -966,12 +967,12 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
         is_verified: false,
         ...(cover ? { cover_image_url: cover, image_url: cover } : {}),
         ...(slug ? { slug } : {}),
-        owner_auth_id: userData.user.id,
-        user_auth_id: userData.user.id,
-        owner_id: userData.user.id,
-        auth_id: userData.user.id,
-        user_id: userData.user.id,
-        created_by: userData.user.id,
+        owner_auth_id: appUser.id,
+        user_auth_id: appUser.id,
+        owner_id: appUser.id,
+        auth_id: appUser.id,
+        user_id: appUser.id,
+        created_by: appUser.id,
       };
 
       const { data } = await saveProjectViaApi(payload, isEditing ? editProjectId : undefined);
@@ -980,18 +981,18 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
       if (projectId && removedDocumentIds.length) await supabaseBrowser.from('project_documents').delete().in('id', removedDocumentIds);
       if (projectId && removedVideoIds.length) await supabaseBrowser.from('project_videos').delete().in('id', removedVideoIds);
       if (projectId && uploaded.length) await insertProjectImages(projectId, uploaded);
-      if (projectId && projectDocuments.length) await saveProjectDocuments(projectId, userData.user.id);
+      if (projectId && projectDocuments.length) await saveProjectDocuments(projectId, appUser.id);
       if (projectId && projectVideos.length) {
-        const uploadedVideos = await uploadProjectVideos(projectVideos, userData.user.id, projectId);
+        const uploadedVideos = await uploadProjectVideos(projectVideos, appUser.id, projectId);
         if (uploadedVideos.length) await insertProjectVideos(projectId, uploadedVideos);
       }
 
       if (projectId && (verificationRequested || verificationFile || projectDocuments.length)) {
         const verification = verificationFile
-          ? await uploadVerificationDocument(verificationFile, userData.user.id, projectId)
+          ? await uploadVerificationDocument(verificationFile, appUser.id, projectId)
           : null;
         await insertRowWithFallback('verification_requests', {
-          user_auth_id: userData.user.id,
+          user_auth_id: appUser.id,
           project_id: projectId,
           request_type: 'project',
           type: 'project',

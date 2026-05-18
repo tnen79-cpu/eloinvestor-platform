@@ -14,12 +14,7 @@ function jsonError(message: string, status = 400, details?: unknown) {
 }
 
 function missingColumn(message: string) {
-  const patterns = [
-    /column ['\"]?([^'\"\\s]+)['\"]? of relation/i,
-    /Could not find the ['\"]([^'\"]+)['\"] column/i,
-    /Could not find column ['\"]([^'\"]+)['\"]/i,
-    /schema cache[^.]*['\"]([^'\"]+)['\"]/i,
-  ];
+  const patterns = [/column ['"]?([^'"\s]+)['"]? of relation/i, /Could not find the ['"]([^'"]+)['"] column/i, /Could not find column ['"]([^'"]+)['"]/i, /schema cache[^.]*['"]([^'"]+)['"]/i];
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match?.[1]) return match[1];
@@ -30,45 +25,63 @@ function missingColumn(message: string) {
 function normalizeAccountType(value: unknown, fallback = 'investor') {
   const raw = String(value || fallback || 'investor').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
   const map: Record<string, string> = {
-    investor: 'investor', مستثمر: 'investor',
-    owner: 'owner', seller: 'owner', founder: 'owner', project_owner: 'owner',
-    صاحب_مشروع: 'owner', صاحب_المشروع: 'owner',
-    both: 'both', owner_investor: 'both', investor_owner: 'both',
-    investor_and_owner: 'both', project_owner_and_investor: 'both',
-    مستثمر_وصاحب_مشروع: 'both', مستثمر_صاحب_مشروع: 'both',
+    investor: 'investor',
+    مستثمر: 'investor',
+    owner: 'owner',
+    seller: 'owner',
+    founder: 'owner',
+    project_owner: 'owner',
+    صاحب_مشروع: 'owner',
+    صاحب_المشروع: 'owner',
+    both: 'both',
+    owner_investor: 'both',
+    investor_owner: 'both',
+    investor_and_owner: 'both',
+    project_owner_and_investor: 'both',
+    مستثمر_وصاحب_مشروع: 'both',
+    مستثمر_صاحب_مشروع: 'both',
   };
   return map[raw] || (['investor', 'owner', 'both'].includes(raw) ? raw : 'investor');
 }
 
-// ✅ FIX 1: isAdminish also checks firebase_uid-based admin records
 function isAdminish(row: any) {
-  if (!row) return false;
   const role = String(row?.admin_role || row?.role || '').toLowerCase();
-  return (
-    row?.is_admin === true ||
-    ['admin', 'super_admin', 'verification_admin', 'content_admin', 'finance_admin', 'support_admin'].includes(role)
-  );
+  return row?.is_admin === true || ['admin', 'super_admin', 'verification_admin', 'content_admin', 'finance_admin', 'support_admin'].includes(role);
 }
 
 async function findExistingUser(db: any, firebaseUser: any, body: AnyRow = {}) {
-  const uid = firebaseUser.uid;
+  const uid = String(firebaseUser.uid || firebaseUser.id || '').trim();
   const email = String(firebaseUser.email || body?.email || '').trim().toLowerCase();
   const phone = String(firebaseUser.phone || body?.phone || '').trim();
-
-  // ✅ FIX 1: firebase_uid is checked FIRST — this is the primary admin lookup key
-  const candidates: Array<{ col: string; val: string }> = [];
-  if (uid) candidates.push({ col: 'firebase_uid', val: uid });
-  if (email) candidates.push({ col: 'email', val: email });
-  if (phone) candidates.push({ col: 'phone', val: phone });
-
   const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(uid || ''));
-  if (uuidLike) candidates.push({ col: 'auth_id', val: uid });
+  const found: any[] = [];
 
-  for (const item of candidates) {
-    const { data, error } = await db.from('users').select('*').eq(item.col, item.val).maybeSingle();
-    if (!error && data) return data;
+  async function collect(query: any) {
+    const { data, error } = await query;
+    if (!error && Array.isArray(data)) found.push(...data);
+    if (!error && data && !Array.isArray(data)) found.push(data);
   }
-  return null;
+
+  if (uid) await collect(db.from('users').select('*').eq('firebase_uid', uid).limit(10));
+  if (email) {
+    await collect(db.from('users').select('*').eq('email', email).limit(10));
+    // بعض الحسابات القديمة محفوظة بحروف كبيرة/مختلطة، لذلك نستخدم ilike كاحتياط.
+    await collect(db.from('users').select('*').ilike('email', email).limit(10));
+  }
+  if (phone) await collect(db.from('users').select('*').eq('phone', phone).limit(10));
+  if (uuidLike) await collect(db.from('users').select('*').eq('auth_id', uid).limit(10));
+
+  const unique = new Map<string, any>();
+  for (const row of found) unique.set(String(row.id || row.firebase_uid || row.auth_id || row.email || Math.random()), row);
+  const rows = Array.from(unique.values());
+  if (!rows.length) return null;
+
+  // إذا هناك حساب إداري قديم بنفس الإيميل، هو الأهم من أي صف user جديد أنشئ تلقائياً.
+  const adminRow = rows.find(isAdminish);
+  if (adminRow) return adminRow;
+  const firebaseRow = rows.find((row) => String(row.firebase_uid || '') === uid);
+  if (firebaseRow) return firebaseRow;
+  return rows[0];
 }
 
 async function upsertUserCompat(db: any, row: AnyRow, existingRow?: AnyRow | null) {
@@ -90,7 +103,10 @@ async function upsertUserCompat(db: any, row: AnyRow, existingRow?: AnyRow | nul
     }
     if (/duplicate key|violates unique constraint/i.test(message) && !existing) {
       const retry = await findExistingUser(db, { uid: row.firebase_uid, email: row.email, phone: row.phone }, row);
-      if (retry) { existing = retry; continue; }
+      if (retry) {
+        existing = retry;
+        continue;
+      }
     }
     throw new Error(message || 'Profile save failed');
   }
@@ -109,24 +125,20 @@ export async function POST(req: NextRequest) {
     const db = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const existing = await findExistingUser(db, firebaseUser, body);
 
-    // ✅ FIX 1: If existing user is admin, NEVER downgrade role — preserve all admin fields
-    const existingIsAdmin = isAdminish(existing);
-
     const requestedComplete = body?.complete_onboarding === true || body?.onboarding_completed === true;
     const bodyName = String(body?.name || '').trim();
     const fallbackName = String(meta.name || meta.full_name || meta.display_name || firebaseUser.phone || firebaseUser.email || 'User').trim();
     const name = bodyName || existing?.name || fallbackName;
 
-    // ✅ FIX 2: account_type — use submitted value first, then existing, never override admin's type
-    // Only fall back to 'investor' if truly nothing is known
     const submittedAccountType = body?.account_type ?? body?.accountType;
-    const resolvedAccountType = existingIsAdmin
-      ? (existing?.account_type || 'both')
-      : normalizeAccountType(submittedAccountType ?? existing?.account_type ?? null);
-
+    const accountType = normalizeAccountType(submittedAccountType ?? existing?.account_type ?? 'investor');
     const onboardingCompleted = requestedComplete || existing?.onboarding_completed === true || false;
 
     const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firebaseUser.uid);
+    const existingIsAdmin = isAdminish(existing);
+    const existingRole = existing?.role || null;
+    const existingAdminRole = existing?.admin_role || null;
+    const existingAdminStatus = existing?.admin_status || null;
 
     const row: Record<string, any> = {
       ...(uuidLike ? { auth_id: firebaseUser.uid } : {}),
@@ -136,17 +148,12 @@ export async function POST(req: NextRequest) {
       email: firebaseUser.email || body?.email || existing?.email || null,
       phone: firebaseUser.phone || body?.phone || existing?.phone || null,
       phone_country_code: body?.phone_country_code || body?.countryCode || existing?.phone_country_code || null,
-      account_type: resolvedAccountType,
-
-      // ✅ FIX 1: Fully preserve admin fields — never set role:'user' for admins
-      role: existingIsAdmin
-        ? (existing?.role || 'admin')
-        : (existing?.role && String(existing.role).includes('admin') ? existing.role : 'user'),
-      admin_role: existingIsAdmin ? (existing?.admin_role || existing?.role || 'admin') : (existing?.admin_role || null),
-      is_admin: existingIsAdmin ? true : (existing?.is_admin || false),
-      admin_status: existingIsAdmin ? (existing?.admin_status || 'active') : (existing?.admin_status || null),
+      account_type: existingIsAdmin ? (existing?.account_type || 'both') : accountType,
+      role: existingIsAdmin ? (existingRole || 'admin') : (existingRole && String(existingRole).includes('admin') ? existingRole : 'user'),
+      admin_role: existingIsAdmin ? (existingAdminRole || existingRole || 'admin') : existingAdminRole,
+      is_admin: existingIsAdmin ? true : existing?.is_admin,
+      admin_status: existingIsAdmin ? (existingAdminStatus || 'active') : existingAdminStatus,
       admin_permissions: existing?.admin_permissions || undefined,
-
       plan: existing?.plan || 'free',
       subscription_status: existing?.subscription_status || 'free',
       avatar_url: meta.avatar_url || existing?.avatar_url || null,
@@ -156,19 +163,12 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    // Never send undefined to Supabase
+    // لا نرسل undefined في Supabase payload
     Object.keys(row).forEach((key) => row[key] === undefined && delete row[key]);
 
     const profile = await upsertUserCompat(db, row, existing);
-
-    const isGenericName = !String(profile?.name || '').trim()
-      || /^\+?\d+$/.test(String(profile?.name || '').trim())
-      || String(profile?.name || '').trim().toLowerCase() === 'user';
-
-    // ✅ FIX 2: admins never need onboarding even if name looks generic
-    const needs_onboarding = isAdminish(profile)
-      ? false
-      : (profile?.onboarding_completed !== true || isGenericName || !profile?.account_type);
+    const isGenericName = !String(profile?.name || '').trim() || /^\+?\d+$/.test(String(profile?.name || '').trim()) || String(profile?.name || '').trim().toLowerCase() === 'user';
+    const needs_onboarding = profile?.onboarding_completed !== true || isGenericName || !profile?.account_type;
 
     return NextResponse.json({ ok: true, user: firebaseUser, profile, needs_onboarding });
   } catch (error) {

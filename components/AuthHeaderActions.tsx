@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, LayoutDashboard, PlusCircle, ShieldCheck, UserRound, BadgeCheck, MessageCircle } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, signOutEverywhere, firebaseCompatibleUserQuery } from '@/lib/auth-client';
+import { getCurrentAppUser, firebaseCompatibleUserQuery, signOutEverywhere } from '@/lib/auth-client';
 import { accountTypeLabel, canAddProjects, isAdminRole } from '@/lib/account';
 import { useI18n } from '@/components/I18nProvider';
 

@@ -26,7 +26,6 @@ const ROOT_ROUTES = new Set([
   'map',
   'compare',
   'payment',
-  'complete-profile',
 ]);
 
 export function middleware(request: NextRequest) {

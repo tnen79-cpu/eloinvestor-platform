@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, UserRound } from 'lucide-react';
 import { getFirebaseIdToken } from '@/lib/firebase-client';
-import { supabaseBrowser } from '@/lib/supabase-browser';
+import { getCurrentAppUser } from '@/lib/auth-client';
 import { useI18n } from '@/components/I18nProvider';
 
 const ACCOUNT_TYPES = [
@@ -20,7 +20,7 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
   const searchParams = useSearchParams();
   const next = useMemo(() => searchParams.get('next') || `/${country}/${lang}/dashboard`, [searchParams, country, lang]);
   const [name, setName] = useState('');
-  const [accountType, setAccountType] = useState('investor');
+  const [accountType, setAccountType] = useState<'investor' | 'owner' | 'both'>('investor');
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -28,8 +28,7 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const { data } = await supabaseBrowser.auth.getUser();
-      const user = data?.user;
+      const user = await getCurrentAppUser(1800);
       if (!mounted) return;
       if (!user) {
         router.replace(`/${country}/${lang}/login?next=${encodeURIComponent(next)}`);
@@ -38,7 +37,7 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
       const meta = user.user_metadata || {};
       const suggestedName = String(meta.full_name || meta.display_name || meta.name || '').trim();
       if (suggestedName && !/^\+?\d+$/.test(suggestedName) && suggestedName !== 'User') setName(suggestedName);
-      setIdentifier(user.email || user.phone || String(meta.phone || ''));
+      setIdentifier(user.email || user.phone || String(meta.phone || user.id || ''));
     }
     load();
     return () => { mounted = false; };
@@ -106,7 +105,7 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
             <button
               key={type.value}
               type="button"
-              onClick={() => setAccountType(type.value)}
+              onClick={() => setAccountType(type.value as 'investor' | 'owner' | 'both')}
               className={`rounded-2xl border px-4 py-4 text-center font-black transition ${accountType === type.value ? 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-900/10' : 'border-slate-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50'}`}
             >
               {accountType === type.value ? <CheckCircle2 className="mx-auto mb-2" size={20} /> : <UserRound className="mx-auto mb-2 text-blue-600" size={20} />}
