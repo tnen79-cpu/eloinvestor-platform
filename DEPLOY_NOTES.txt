@@ -1,18 +1,24 @@
-EloInvestor v82 Clean Ready
+EloInvestor v82 Clean Ready - Supabase Auth Fixed
 
-This version is prepared as the stable base version before Firebase integration.
+Included fixes:
+- Removed Firebase path completely from this stable base.
+- Google login works with Supabase PKCE SSR callback.
+- Added @supabase/ssr browser client.
+- Added server route callback: /[country]/[lang]/auth/callback
+- Added forced first-login profile completion for Google/Phone users.
+- Added logout button in user dashboard.
 
-Recommended stack:
-- Next.js
-- Supabase Auth
-- Google Login
-- Phone OTP
-- Email fallback
+Supabase settings:
+1. Authentication > Providers > Google: enable and paste Client ID/Secret.
+2. Authentication > URL Configuration:
+   Site URL: https://eloinvestor-platform.vercel.app
+   Redirect URLs:
+   https://eloinvestor-platform.vercel.app/**
+   https://eloinvestor.com/**
+   https://www.eloinvestor.com/**
+3. Google Console Authorized redirect URI:
+   https://khzlqesyhkmucewiwmkg.supabase.co/auth/v1/callback
 
-Before deploy:
-1. Add .env.local
-2. Configure Supabase providers
-3. Run npm install
-4. Run npm run build
-5. Deploy to Vercel
-
+Deploy:
+npm install
+npm run build

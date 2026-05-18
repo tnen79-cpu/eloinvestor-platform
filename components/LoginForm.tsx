@@ -47,22 +47,6 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
 
   const fullPhone = useMemo(() => normalizePhone(countryCode, phone), [countryCode, phone]);
 
-  async function ensureProfile(userId: string) {
-    try {
-      await supabaseBrowser.from('users').upsert({
-        auth_id: userId,
-        phone: fullPhone,
-        phone_country_code: countryCode,
-        name: fullPhone,
-        role: 'user',
-        plan: 'free',
-        subscription_status: 'free',
-      }, { onConflict: 'auth_id' });
-    } catch (error) {
-      console.warn('Profile upsert after phone login failed:', error);
-    }
-  }
-
   async function sendOtp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -101,7 +85,6 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
       return;
     }
 
-    if (data.user) await ensureProfile(data.user.id);
     setLoading(false);
     router.push(`/${country}/${lang}/dashboard`);
     router.refresh();
@@ -113,7 +96,7 @@ export function LoginForm({ country, lang }: { country: string; lang: string }) 
     const redirectTo = `${window.location.origin}/${country}/${lang}/auth/callback?next=/${country}/${lang}/dashboard`;
     const { error } = await supabaseBrowser.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: { redirectTo, queryParams: { prompt: 'select_account' } },
     });
     if (error) {
       setLoading(false);
