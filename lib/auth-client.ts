@@ -5,27 +5,35 @@ import { firebaseUserToSupabaseLike, getFirebaseAuth, signOutFirebase } from '@/
 import { onAuthStateChanged } from 'firebase/auth';
 
 export async function getCurrentAppUser(timeoutMs = 900): Promise<any | null> {
+  // IMPORTANT: EloInvestor now uses Firebase as the primary auth layer.
+  // Keep Supabase auth as a legacy fallback only. If we read Supabase first,
+  // old sessions/user_metadata can incorrectly force account_type='investor'
+  // while the real Firebase-linked profile in public.users is owner/both.
+  const auth = getFirebaseAuth();
+  if (auth?.currentUser) return firebaseUserToSupabaseLike(auth.currentUser);
+
+  if (auth) {
+    const firebaseUser = await new Promise<any | null>((resolve) => {
+      let done = false;
+      let unsub = () => undefined;
+      const finish = (user: any | null) => {
+        if (done) return;
+        done = true;
+        try { unsub(); } catch {}
+        resolve(user);
+      };
+      unsub = onAuthStateChanged(auth, (user) => finish(user));
+      setTimeout(() => finish(null), timeoutMs);
+    });
+    if (firebaseUser) return firebaseUserToSupabaseLike(firebaseUser);
+  }
+
   try {
     const { data } = await supabaseBrowser.auth.getUser();
     if (data?.user) return data.user;
   } catch {}
 
-  const auth = getFirebaseAuth();
-  if (!auth) return null;
-  if (auth.currentUser) return firebaseUserToSupabaseLike(auth.currentUser);
-
-  return await new Promise((resolve) => {
-    let done = false;
-    let unsub = () => undefined;
-    const finish = (user: any | null) => {
-      if (done) return;
-      done = true;
-      try { unsub(); } catch {}
-      resolve(firebaseUserToSupabaseLike(user));
-    };
-    unsub = onAuthStateChanged(auth, (user) => finish(user));
-    setTimeout(() => finish(null), timeoutMs);
-  });
+  return null;
 }
 
 export async function signOutEverywhere() {
