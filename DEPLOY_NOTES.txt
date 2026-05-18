@@ -1,0 +1,18 @@
+EloInvestor v82 Clean Ready
+
+This version is prepared as the stable base version before Firebase integration.
+
+Recommended stack:
+- Next.js
+- Supabase Auth
+- Google Login
+- Phone OTP
+- Email fallback
+
+Before deploy:
+1. Add .env.local
+2. Configure Supabase providers
+3. Run npm install
+4. Run npm run build
+5. Deploy to Vercel
+
