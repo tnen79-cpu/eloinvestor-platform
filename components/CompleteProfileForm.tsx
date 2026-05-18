@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, UserRound } from 'lucide-react';
-import { getFirebaseIdToken } from '@/lib/firebase-client';
+import { supabaseBrowser } from '@/lib/supabase-browser';
 import { getCurrentAppUser } from '@/lib/auth-client';
 import { useI18n } from '@/components/I18nProvider';
 
@@ -58,22 +58,23 @@ export function CompleteProfileForm({ country, lang }: { country: string; lang: 
     setLoading(true);
     setMessage('');
     try {
-      const token = await getFirebaseIdToken();
-      if (!token) throw new Error(isAr ? 'انتهت الجلسة، سجّل الدخول مرة أخرى.' : 'Session expired, please sign in again.');
-
-      const response = await fetch('/api/auth/firebase-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name: cleanName,
-          account_type: accountType,
-          complete_onboarding: true,
-          onboarding_completed: true,
-        }),
-      });
-
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || json?.ok === false) throw new Error(json?.error || (isAr ? 'تعذر حفظ البيانات.' : 'Could not save profile.'));
+      const user = await getCurrentAppUser(1800);
+      if (!user) throw new Error(isAr ? 'انتهت الجلسة، سجّل الدخول مرة أخرى.' : 'Session expired, please sign in again.');
+      const meta = user.user_metadata || {};
+      const { error } = await supabaseBrowser.from('users').upsert({
+        auth_id: user.id,
+        email: user.email || '',
+        phone: user.phone || String(meta.phone || ''),
+        name: cleanName,
+        account_type: accountType,
+        role: 'user',
+        plan: 'free',
+        subscription_status: 'free',
+        provider: String(user.app_metadata?.provider || meta.provider || 'supabase'),
+        onboarding_completed: true,
+        profile_completed: true,
+      }, { onConflict: 'auth_id' });
+      if (error) throw error;
 
       router.replace(next);
       router.refresh();

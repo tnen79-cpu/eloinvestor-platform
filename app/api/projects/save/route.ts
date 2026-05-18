@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getSupabaseOrFirebaseUser } from '@/lib/firebase-server';
+import { getSupabaseUserFromBearer } from '@/lib/auth-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,8 +145,7 @@ export async function POST(req: NextRequest) {
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
     if (!token) return jsonError('يجب تسجيل الدخول قبل حفظ المشروع.', 401);
 
-    const authClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const authResult = await getSupabaseOrFirebaseUser(authClient, token);
+    const authResult = await getSupabaseUserFromBearer(token);
     if (!authResult.user) return jsonError('جلسة الدخول غير صالحة. سجّل الدخول من جديد.', 401, authResult.error?.message);
     const userData = { user: authResult.user };
 

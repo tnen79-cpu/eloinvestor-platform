@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, MessageCircle, PhoneCall, LockKeyhole, Send } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
+import { getCurrentAppUser, userProfileQuery } from '@/lib/auth-client';
 import { canInvest } from '@/lib/account';
 import { trackPromotionMetric } from '@/lib/promotion-analytics';
 
@@ -33,8 +33,9 @@ function ownerLookupQuery(ownerId?: string) {
   const raw = String(ownerId || '').trim();
   if (!raw) return 'id.eq.__none__';
   const safe = raw.replace(/,/g, '\,').replace(/\)/g, '\)').replace(/\(/g, '\(');
-  const parts = [`firebase_uid.eq.${safe}`];
+  const parts: string[] = [];
   if (isUuidLike(raw)) parts.push(`auth_id.eq.${safe}`, `id.eq.${safe}`);
+  else parts.push(`profile_slug.eq.${safe}`, `email.eq.${safe}`);
   return parts.join(',');
 }
 
@@ -65,7 +66,7 @@ export function ContactActions({ country, lang, projectId, projectTitle, ownerId
         const { data: profile } = await supabaseBrowser
           .from('users')
           .select('role,account_type')
-          .or(firebaseCompatibleUserQuery(user))
+          .or(userProfileQuery(user))
           .maybeSingle();
         accountType = (profile as any)?.account_type || accountType;
         role = (profile as any)?.role || role;

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, CreditCard, FileText, ImagePlus, Loader2, LockKeyhole, MapPin, Megaphone, Navigation, ShieldCheck, Sparkles, UploadCloud, Wand2, Video, X } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
+import { getCurrentAppUser, userProfileQuery } from '@/lib/auth-client';
 import { useI18n } from '@/components/I18nProvider';
 
 type FormState = {
@@ -521,7 +521,7 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
         const appUser = await getCurrentAppUser(1500);
         const userId = appUser?.id;
         if (!userId) return;
-        const { data: profile } = await supabaseBrowser.from('users').select('subscription_status,plan').or(firebaseCompatibleUserQuery({ id: userId })).maybeSingle();
+        const { data: profile } = await supabaseBrowser.from('users').select('subscription_status,plan').or(userProfileQuery({ id: userId })).maybeSingle();
         if (mounted) setUserPlan(String((profile as any)?.subscription_status || (profile as any)?.plan || 'free'));
       } catch (error) {
         console.warn('Plan lookup skipped:', error);

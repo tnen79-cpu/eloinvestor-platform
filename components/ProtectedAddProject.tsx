@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
+import { getCurrentAppUser, userProfileQuery } from '@/lib/auth-client';
 import { AddProjectForm } from '@/components/AddProjectForm';
 import { canAddProjects } from '@/lib/account';
 import { useI18n } from '@/components/I18nProvider';
@@ -29,7 +29,7 @@ export function ProtectedAddProject({ country, lang }: { country: string; lang: 
           const { data: profile } = await supabaseBrowser
             .from('users')
             .select('role,account_type')
-            .or(firebaseCompatibleUserQuery(authUser))
+            .or(userProfileQuery(authUser))
             .maybeSingle();
           accountType = (profile as any)?.account_type || accountType;
           role = (profile as any)?.role || role;

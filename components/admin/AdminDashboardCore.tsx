@@ -43,8 +43,7 @@ import {
   Home,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { getCurrentAppUser, firebaseCompatibleUserQuery } from '@/lib/auth-client';
-import { getFirebaseIdToken } from '@/lib/firebase-client';
+import { getCurrentAppUser, userProfileQuery, getSupabaseAccessToken } from '@/lib/auth-client';
 import { AnalyticsBars } from '@/components/AnalyticsBars';
 import { isAdminRole } from '@/lib/account';
 import { flattenDefaultTranslations } from '@/lib/i18n';
@@ -650,7 +649,7 @@ export default function AdminDashboard() {
 
   async function checkAdmin() {
     // المسار الجديد للإدارة مستقل عن تسجيل دخول المستخدمين.
-    // هذا يحل مشكلة Firebase/Supabase session ويجعل دخول الإدارة عبر كلمة مرور خاصة.
+    // هذا يحل مشكلة Supabase session ويجعل دخول الإدارة عبر كلمة مرور خاصة.
     try {
       const response = await fetch('/api/admin-session', { cache: 'no-store' });
       const json = await response.json().catch(() => ({}));
@@ -679,39 +678,21 @@ export default function AdminDashboard() {
 
     let profile: any = null;
 
-    // Firebase admin check MUST use a server API with service role.
-    // Client-side Supabase queries may be blocked by RLS and Firebase UID is not a UUID.
+    // Supabase admin check uses the server API with service role.
+    // Client-side Supabase queries may be blocked by RLS.
     try {
-      const firebaseToken = await getFirebaseIdToken();
-      if (firebaseToken) {
-        const response = await fetch('/api/auth/firebase-admin-check', {
+      const accessToken = await getSupabaseAccessToken();
+      if (accessToken) {
+        const response = await fetch('/api/auth/supabase-admin-check', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${firebaseToken}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
           cache: 'no-store',
         });
         const json = await response.json().catch(() => ({}));
         if (response.ok && json?.allowed && json?.profile) profile = json.profile;
       }
     } catch (error) {
-      console.warn('Firebase admin check skipped:', error);
-    }
-
-    // If the user is not admin, still sync/create normal profile without overwriting admin roles.
-    if (!profile) {
-      try {
-        const firebaseToken = await getFirebaseIdToken();
-        if (firebaseToken) {
-          const response = await fetch('/api/auth/firebase-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${firebaseToken}` },
-            body: JSON.stringify({ login_source: 'admin_check' }),
-          });
-          const json = await response.json().catch(() => ({}));
-          if (response.ok && json?.profile) profile = json.profile;
-        }
-      } catch (error) {
-        console.warn('Firebase profile lookup skipped:', error);
-      }
+      console.warn('Supabase admin check skipped:', error);
     }
 
     if (!profile) {
@@ -725,7 +706,7 @@ export default function AdminDashboard() {
       const directProfile = await supabaseBrowser
         .from('users')
         .select('*')
-        .or(firebaseCompatibleUserQuery(user))
+        .or(userProfileQuery(user))
         .maybeSingle();
       if (!directProfile.error) profile = directProfile.data;
     }
@@ -913,10 +894,10 @@ export default function AdminDashboard() {
     } else {
       let loadedUsers = false;
       try {
-        const firebaseToken = await getFirebaseIdToken();
+        const accessToken = await getSupabaseAccessToken();
         const response = await fetch('/api/admin/users', {
           cache: 'no-store',
-          headers: firebaseToken ? { Authorization: `Bearer ${firebaseToken}` } : {},
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         });
         const json = await response.json().catch(() => ({}));
         if (response.ok && Array.isArray(json?.users)) {

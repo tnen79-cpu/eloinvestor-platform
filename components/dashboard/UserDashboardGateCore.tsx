@@ -34,8 +34,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { signOutEverywhere } from '@/lib/auth-client';
-import { getCurrentAppProfile } from '@/lib/app-profile-client';
+import { getCurrentAppUser, signOutEverywhere, userProfileQuery } from '@/lib/auth-client';
 import { AddProjectForm } from '@/components/AddProjectForm';
 import { SavedSearchesPanel } from '@/components/SavedSearchesPanel';
 import { accountTypeLabel, canAddProjects, canInvest, isAdminRole } from '@/lib/account';
@@ -206,18 +205,21 @@ function mapMini(row: Record<string, any>, prefix: string): MiniProject {
 }
 
 async function getProfile(): Promise<Profile | null> {
-  const { authUser, profile } = await getCurrentAppProfile();
+  const authUser = await getCurrentAppUser();
   if (!authUser) return null;
-
-  const dbAccountType = String(profile?.account_type || profile?.type || '').trim();
-  const safeAccountType = ['investor', 'owner', 'both'].includes(dbAccountType) ? dbAccountType : 'investor';
-
+  let profile: any = null;
+  try {
+    const res = await supabaseBrowser.from('users').select('*').or(userProfileQuery(authUser)).maybeSingle();
+    profile = res.data;
+  } catch (error) {
+    console.warn('Profile lookup failed:', error);
+  }
   return {
     id: authUser.id,
-    name: profile?.name || profile?.display_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || authUser.phone || 'User',
+    name: profile?.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
     email: profile?.email || authUser.email || '',
-    accountType: safeAccountType,
-    role: profile?.role || profile?.admin_role || authUser.user_metadata?.role || 'user',
+    accountType: profile?.account_type || authUser.user_metadata?.account_type || 'investor',
+    role: profile?.role || authUser.user_metadata?.role || 'user',
     plan: profile?.subscription_status || profile?.plan || 'starter',
     verificationStatus: profile?.verification_status || profile?.investor_verification_status || 'unverified',
     remainingProjects: Number(profile?.remaining_projects ?? profile?.projects_remaining ?? 1),

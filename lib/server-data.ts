@@ -746,7 +746,7 @@ function normalizeAccountType(row: Record<string, any>) {
 }
 
 function mapUserProfile(row: Record<string, any>, followersCount = 0, projectsCount = 0): UiUserProfile {
-  const authId = pickString(row, ['firebase_uid', 'auth_id', 'authId'], '');
+  const authId = pickString(row, ['auth_id', 'authId'], '');
   const id = pickString(row, ['id'], authId);
   const slug = pickString(row, ['profile_slug', 'slug', 'username'], '') || authId || id;
   const email = pickString(row, ['email'], '');
@@ -796,9 +796,7 @@ export async function getUserProfileById(identifier: string): Promise<UiUserProf
     const queries: any[] = [];
     if (uuidLike) {
       queries.push(supabase.from('public_user_profiles_view').select('*').eq('auth_id', value).maybeSingle());
-      queries.push(supabase.from('public_user_profiles_view').select('*').eq('firebase_uid', value).maybeSingle());
       queries.push(supabase.from('public_user_profiles_view').select('*').eq('id', value).maybeSingle());
-      queries.push(supabase.from('users').select('*').eq('firebase_uid', value).maybeSingle());
       queries.push(supabase.from('users').select('*').eq('auth_id', value).maybeSingle());
       queries.push(supabase.from('users').select('*').eq('id', value).maybeSingle());
     }
@@ -806,13 +804,12 @@ export async function getUserProfileById(identifier: string): Promise<UiUserProf
     queries.push(supabase.from('public_user_profiles_view').select('*').eq('email', value).maybeSingle());
     queries.push(supabase.from('users').select('*').eq('profile_slug', value).maybeSingle());
     queries.push(supabase.from('users').select('*').eq('email', value).maybeSingle());
-    queries.push(supabase.from('users').select('*').eq('firebase_uid', value).maybeSingle());
 
     for (const query of queries) {
       const { data, error } = await query;
       if (error) continue;
       if (data) {
-        const authId = pickString(data as any, ['firebase_uid', 'auth_id'], pickString(data as any, ['id'], ''));
+        const authId = pickString(data as any, ['auth_id'], pickString(data as any, ['id'], ''));
         const [followersCount, projectsCount] = await Promise.all([getUserFollowersCount(authId), getUserProjectsCount(authId)]);
         return mapUserProfile(data as any, followersCount, projectsCount);
       }
