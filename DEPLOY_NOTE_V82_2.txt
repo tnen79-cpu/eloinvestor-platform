@@ -1,0 +1,19 @@
+V82.2 — Launch Fixes Applied
+==============================
+
+FIXES:
+1. app/not-found.tsx — Global branded 404 page (was missing entirely)
+2. app/opengraph-image.tsx — Auto-generated OG image 1200×630 via Next.js ImageResponse
+3. app/layout.tsx — Added manifest, themeColor, appleWebApp, og:images, twitter:images
+4. app/sitemap.ts — Now includes dynamic project pages from Supabase (was static only)
+5. app/[country]/[lang]/investors/page.tsx — Redirects to /opportunities (was stub)
+6. app/[country]/[lang]/companies/page.tsx — Redirects to /opportunities (was stub)
+7. components/ShareProfileButton.tsx — New client component: uses Web Share API, falls back to clipboard copy
+8. app/[country]/[lang]/profile/[id]/page.tsx — Uses ShareProfileButton (was dead button)
+9. public/manifest.json — PWA manifest with shortcuts for home screen install
+10. loading.tsx — Added to 7 pages that were missing skeleton loaders
+
+NOTES:
+- public/icon-192.png and public/icon-512.png need to be added for PWA icons to work
+- Replace footer social links (X, Instagram, LinkedIn, WhatsApp) with official accounts
+- THAWANI_MODE=production before going live (currently 'test')

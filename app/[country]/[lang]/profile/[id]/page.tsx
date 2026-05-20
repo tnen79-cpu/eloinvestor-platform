@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BadgeCheck, BriefcaseBusiness, CalendarDays, Camera, CheckCircle2, Eye, MapPin, MessageCircle, Phone, Share2, Star, UserPlus, Users } from 'lucide-react';
+import { BadgeCheck, BriefcaseBusiness, CalendarDays, Camera, CheckCircle2, Eye, MapPin, MessageCircle, Phone, Star, UserPlus, Users } from 'lucide-react';
+import { ShareProfileButton } from '@/components/ShareProfileButton';
 import { ProjectCard } from '@/components/ProjectCard';
 import { FollowUserButton } from '@/components/FollowUserButton';
 import { formatDate, getCountryByCode, getUserProfileById, getUserProjects, getUserRatings, roleLabel } from '@/lib/server-data';
@@ -54,7 +55,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ co
         <div className="profile-pro-cover">
           <div className="profile-pro-actions">
             {publicPhone ? <a className="profile-phone" href={`tel:${profile.whatsapp || profile.phone}`}>{publicPhone} <Phone size={16} /></a> : null}
-            <button type="button" className="profile-outline"><Share2 size={16} /> {isAr ? 'شارك' : 'Share'}</button>
+            <ShareProfileButton name={profile.name || ''} lang={lang} />
             <FollowUserButton profileAuthId={ownerKey} lang={lang} />
           </div>
           <div className="profile-pro-identity">
