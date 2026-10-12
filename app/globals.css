@@ -2386,3 +2386,23 @@ button[class*="bg-green-"],a[class*="bg-green-"],button[class*="bg-emerald-"],a[
   position:relative!important;
   z-index:1!important;
 }
+
+
+/* Marketplace accessibility: mobile search must remain usable instead of being hidden. */
+@media (max-width:760px) {
+  .market-layout { display:flex; flex-direction:column; gap:16px; }
+  .filters-panel { display:block; width:100%; position:static; padding:18px; border-radius:22px; }
+  .filters-panel .filter-group { padding-top:14px; margin-top:14px; }
+  .filters-panel input[type="number"], .filters-panel select { width:100%; max-width:100%; min-height:44px; padding:9px 12px; border:1px solid var(--border); background:#fff; border-radius:12px; }
+  .filters-panel .check { min-height:40px; }
+  .filters-panel input[type="checkbox"], .filters-panel input[type="radio"] { min-width:18px; min-height:18px; }
+  .results { min-width:0; width:100%; }
+  .results-head { display:flex; flex-wrap:wrap; }
+  .market-grid { grid-template-columns:1fr; }
+}
+@media (min-width:600px) and (max-width:760px) {
+  .market-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .listing-card,.listing-thumb img,.btn { transition:none !important; transform:none !important; }
+}
