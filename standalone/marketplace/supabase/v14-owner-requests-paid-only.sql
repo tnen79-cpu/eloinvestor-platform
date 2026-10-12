@@ -1,0 +1,3 @@
+-- تم استبدال ملف v14 بملف v15 لتفادي infinite recursion.
+-- شغل الملف التالي بدل هذا:
+-- supabase/v15-plans-owner-requests-link.sql

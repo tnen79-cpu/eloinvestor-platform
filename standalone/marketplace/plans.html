@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="#00623f" name="theme-color"/>
+<title data-i18n="plans.text_001">باقات النشر | إلو مستثمر</title>
+<meta content="باقات نشر المشاريع في منصة إلو مستثمر." name="description"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<meta content="باقات النشر | إلو مستثمر" property="og:title"/>
+<meta content="منصة إلو مستثمر لعرض واكتشاف الفرص الاستثمارية الموثوقة." property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<link href="assets/css/i18n.css" rel="stylesheet"/>
+<link href="assets/css/language-switcher-v70.css" rel="stylesheet"/>
+<style>[data-bank-instructions]{white-space:pre-line;line-height:1.9}</style></head>
+<body>
+<header class="header">
+<div class="container nav">
+<a class="logo" href="index.html"><span class="logo-badge">📈</span> إلو مستثمر</a>
+<nav class="nav-links">
+<a data-i18n="plans.text_002" href="index.html">الرئيسية</a>
+<a data-i18n="plans.text_003" href="opportunities.html">اكتشف الفرص</a>
+<a data-i18n="plans.text_004" href="add-project.html">أضف مشروع</a>
+<a class="active" data-i18n="plans.text_005" href="plans.html">الباقات</a>
+</nav>
+<div class="nav-actions">
+<a class="btn btn-outline" data-i18n="plans.text_006" href="login.html">تسجيل الدخول</a>
+<a class="btn btn-gold" data-i18n="plans.text_007" href="register.html">إنشاء حساب</a>
+</div>
+</div>
+</header>
+<main class="container page">
+<section class="container ad-section ad-page-slot" data-ad-placement="plans_top"></section>
+<section class="page-hero">
+<h1 data-i18n="plans.text_008">باقات نشر المشاريع</h1>
+<p data-i18n="plans.text_009">اختر الباقة المناسبة لنشر مشاريعك وجذب المستثمرين الجادين.</p>
+</section>
+<section class="plans-grid" data-plans=""><div class="empty-state" role="status">جاري تحميل الباقات...</div></section>
+<section class="panel payment-info-panel" style="margin-top:24px"><h2>الدفع وتفعيل الباقة</h2><p>اختر باقة فعالة، اتبع بيانات التحويل المعتمدة، ثم ارفع إيصالك. لا تُفعّل الباقة إلا بعد مراجعة الإدارة.</p><a class="btn btn-outline" href="payments.html">متابعة طلبات الدفع</a></section>
+<div class="payment-modal" hidden="" id="paymentModal">
+<div class="payment-card">
+<button class="payment-close" data-payment-close="" type="button">×</button>
+<span class="eyebrow" data-i18n="plans.text_035">طلب شراء باقة</span>
+<h2 id="paymentPlanTitle">شراء الباقة</h2>
+<p class="payment-muted" data-i18n="plans.text_037">حوّل المبلغ ثم ارفع صورة الإيصال ليتم تفعيل الباقة من لوحة الإدارة.</p>
+<div class="payment-bank-box" data-bank-instructions=""></div>
+<form id="paymentRequestForm">
+<input name="plan" type="hidden"/>
+
+
+
+
+<label data-i18n="plans.text_041">رقم مرجع التحويل</label>
+<input data-i18n-placeholder="plans.placeholder_042" name="reference" placeholder="مثال: BM-2026-0001" required=""/>
+<label data-i18n="plans.text_043">ملاحظات اختيارية</label>
+<textarea data-i18n-placeholder="plans.placeholder_044" name="note" placeholder="اكتب أي تفاصيل تساعد الإدارة على التأكد من التحويل" rows="3"></textarea>
+<label data-i18n="plans.text_045">صورة الإيصال</label>
+<input accept="image/*,.pdf" name="receipt" required="" type="file"/>
+<button class="btn btn-green btn-block" data-i18n="plans.text_046" type="submit">إرسال طلب التفعيل</button>
+</form>
+</div>
+</div>
+</main>
+<nav class="bottom-nav">
+<a href="index.html"><strong>⌂</strong><span data-i18n="plans.text_047">الرئيسية</span></a>
+<a href="opportunities.html"><strong>▦</strong><span data-i18n="plans.text_048">المشاريع</span></a>
+<a href="add-project.html"><strong class="plus">+</strong><span></span></a>
+<a href="chat.html"><strong>💬</strong><span data-i18n="plans.text_049">المحادثة</span></a>
+<a href="user-dashboard.html"><strong>👤</strong><span data-i18n="plans.text_050">حسابي</span></a>
+</nav>
+<script src="assets/js/app.js?v=76.0.0"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/language-switcher-v70.js"></script>
+</body>
+</html>

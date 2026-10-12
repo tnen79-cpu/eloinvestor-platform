@@ -1,0 +1,58 @@
+const fs=require('fs'),assert=require('node:assert/strict');const {PGlite}=require('@electric-sql/pglite');
+(async()=>{
+ const db=new PGlite();const a='00000000-0000-4000-8000-000000000001',b='00000000-0000-4000-8000-000000000002',admin='00000000-0000-4000-8000-000000000003';
+ await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;grant usage on schema auth,public,storage to anon,authenticated;grant execute on function auth.uid() to public;
+ create function public.is_admin_staff(permission text default null) returns boolean language sql stable security definer as $$select auth.uid()='${admin}'::uuid$$;
+ create table users(id uuid default gen_random_uuid(),auth_id uuid primary key,role text default 'user',plan text default 'free',subscription_status text default 'free',remaining_projects int default 1,featured_projects int default 0,free_project_used boolean default false,is_blocked boolean default false,verification_status text default 'not_verified',account_type text default 'owner',phone text,whatsapp text,subscription_expires_at timestamptz,paid_owner_requests_enabled boolean default false,name text,investor_preferences jsonb default '{}');
+ create table investor_saved_projects(id uuid primary key default gen_random_uuid(),investor_auth_id uuid,project_id uuid,project_snapshot jsonb default '{}');
+ create table projects(id uuid primary key default gen_random_uuid(),owner_auth_id uuid,user_id uuid,title text,description text,category text,type text,price numeric,monthly_profit numeric,location text,whatsapp text,image_url text,status text,verification_status text,views_count int,contacts_count int,admin_note text,created_at timestamptz default now());
+ create table project_images(id uuid default gen_random_uuid(),project_id uuid references projects(id),image_url text,sort_order int);
+ create table verification_files(id uuid default gen_random_uuid(),owner_auth_id uuid,project_id uuid references projects(id),target_type text,file_url text,file_name text,file_type text,status text,admin_note text,reviewed_by uuid,reviewed_at timestamptz,created_at timestamptz default now());
+ create table admin_plans(id uuid default gen_random_uuid(),code text primary key,name text,price numeric,duration_days int,project_limit int,features jsonb default '[]',is_active boolean default true,sort_order int default 1);
+ create table payment_requests(id uuid primary key default gen_random_uuid(),user_auth_id uuid,plan text,amount_omr numeric,credits int,featured_projects int,days int,payment_method text,payment_reference text,receipt_url text,note text,status text,reviewed_by uuid,reviewed_at timestamptz,admin_note text,created_at timestamptz default now(),updated_at timestamptz default now());
+ create table chat_conversations(id uuid primary key default gen_random_uuid(),owner_auth_id uuid,investor_auth_id uuid,project_id uuid,is_closed boolean default false,last_message text,last_message_at timestamptz,updated_at timestamptz,unread_owner int default 0,unread_investor int default 0,unique(project_id,owner_auth_id,investor_auth_id));
+ create table chat_messages(id uuid primary key default gen_random_uuid(),conversation_id uuid references chat_conversations(id),sender_auth_id uuid,receiver_auth_id uuid,body text,attachment_url text,attachment_name text,attachment_type text,attachment_size bigint,delivered_at timestamptz);
+ create table admin_activity_logs(id uuid default gen_random_uuid(),admin_auth_id uuid,action text,target_table text,target_id text,metadata jsonb);create table notifications(id uuid default gen_random_uuid(),user_auth_id uuid,title text,message text,type text,link_url text,created_by uuid);
+ create table storage.buckets(id text primary key,public boolean,name text,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(bucket_id text,name text);
+ insert into users(auth_id,name) values('${a}','A'),('${b}','B');insert into admin_plans(code,name,price,duration_days,project_limit) values('pro','Pro',25,30,10);
+ insert into storage.buckets(id,public) values('payment-receipts',true),('verification-files',true),('chat-attachments',true);
+ insert into storage.objects values('project-images','${a}/img.png'),('verification-files','${a}/doc.pdf'),('payment-receipts','${a}/receipt.pdf');
+ grant select,insert,update,delete on users,projects,project_images,payment_requests,chat_messages,chat_conversations,storage.objects to anon,authenticated;
+ create policy legacy_users on users for all to public using(true) with check(true);create policy legacy_projects on projects for all to public using(true) with check(true);alter table projects enable row level security;
+ create policy legacy_conversations on chat_conversations for all to public using(true) with check(true);create policy legacy_messages on chat_messages for all to public using(true) with check(true);create policy legacy_objects on storage.objects for all to public using(true) with check(true);`);
+ const base=require('node:path').resolve(__dirname,'../supabase/migrations')+'/';for(const f of ['20261011225215_investor_private_workspace.sql','20261011225640_atomic_project_and_payments.sql','20261011225736_private_file_access.sql','20261011230157_reliable_chat_delivery.sql','20261011230900_project_edit_review.sql','20261011231308_public_marketplace_projection.sql','20261011233442_accountable_review_and_leads.sql'])await db.exec(fs.readFileSync(base+f,'utf8'));
+ const verifier='00000000-0000-4000-8000-000000000004',reviewer='00000000-0000-4000-8000-000000000005';
+ await db.exec(`create or replace function public.is_admin_staff(permission text default null) returns boolean language sql stable security definer as $$select auth.uid()='${admin}'::uuid or (auth.uid()='${verifier}'::uuid and permission='verification') or (auth.uid()='${reviewer}'::uuid and permission='projects')$$;
+ update users set phone='123456',whatsapp='96812345678',investor_preferences='{"private":"secret"}' where auth_id='${b}';
+ insert into projects(id,owner_auth_id,title,status,verification_status) values('11111111-1111-4111-8111-111111111111','${a}','Project','approved','not_verified');
+ insert into storage.objects values('verification-files','${a}/doc2.pdf'),('verification-files','${a}/doc3.pdf');`);
+ const project='11111111-1111-4111-8111-111111111111';
+ async function as(uid){await db.exec(`reset role;set role authenticated;set test.uid='${uid}';`);}
+ async function submit(path,replacement=null){return (await db.query('select submit_verification_v76($1,$2,$3,$4,$5) as id',[project,`storage://verification-files/${a}/${path}`,path,'application/pdf',replacement])).rows[0].id;}
+ async function review(id,rev,status,note=''){return(await db.query('select review_document_v76($1,$2,$3,$4) as state',[id,rev,status,note])).rows[0].state;}
+ await as(a);const doc1=await submit('doc.pdf'),doc2=await submit('doc2.pdf');assert.equal(await submit('doc.pdf'),doc1);
+ await as(reviewer);await assert.rejects(review(doc1,0,'verified'));
+ await as(verifier);assert.equal(await review(doc1,0,'verified'),'pending');await assert.rejects(review(doc1,0,'rejected','stale revision'));
+ assert.equal(await review(doc2,0,'rejected','Missing reliable evidence'),'needs_documents');
+ await assert.rejects(db.query('select review_project_v76($1,$2,$3,$4)',[project,0,'approved','']));
+ await as(b);await assert.rejects(submit('doc3.pdf',doc2));
+ await as(a);const doc3=await submit('doc3.pdf',doc2);assert.equal(await submit('doc3.pdf',doc2),doc3);
+ await as(verifier);await assert.rejects(review(doc2,1,'verified'));assert.equal(await review(doc3,0,'verified'),'verified');
+ await db.exec(`reset role;create function fail_review_log() returns trigger language plpgsql as $$begin raise exception 'audit fixture failure';end$$;create trigger fail_review_log before insert on admin_activity_logs for each row execute function fail_review_log();`);
+ await as(verifier);await assert.rejects(review(doc1,1,'rejected','Rollback test reason'));await db.exec('reset role');assert.equal((await db.query('select status from verification_files where id=$1',[doc1])).rows[0].status,'verified');await db.exec('drop trigger fail_review_log on admin_activity_logs');
+ const rev=(await db.query('select review_revision from projects where id=$1',[project])).rows[0].review_revision;
+ await as(reviewer);await assert.rejects(db.query('select review_project_v76($1,$2,$3,$4)',[project,rev,'rejected','']));await db.query('select review_project_v76($1,$2,$3,$4)',[project,rev,'approved','Approved after review']);await assert.rejects(db.query('select review_project_v76($1,$2,$3,$4)',[project,rev,'rejected','Stale review reason']));
+ await as(b);const interest=(await db.query('select set_project_interest_v76($1) as id',[project])).rows[0].id;assert.equal((await db.query('select set_project_interest_v76($1) as id',[project])).rows[0].id,interest);
+ await as(a);let leads=(await db.query('select owner_leads_v76() as data')).rows[0].data;assert.equal(leads.paid_access,false);assert.equal(leads.leads[0].phone,null);
+ await db.exec(`reset role;update users set plan='pro',subscription_status='active',subscription_expires_at=now()+interval '30 days' where auth_id='${a}';`);
+ await as(a);leads=(await db.query('select owner_leads_v76() as data')).rows[0].data;assert.equal(leads.paid_access,true);assert.equal(leads.leads[0].phone,null);
+ await as(b);await db.query('select set_project_interest_v76($1,true,true)',[project]);await assert.rejects(db.query('select * from project_leads_v76'));
+ await as(a);leads=(await db.query('select owner_leads_v76() as data')).rows[0].data;assert.equal(leads.leads[0].phone,'123456');assert.equal(leads.leads[0].investor_preferences,undefined);
+ const old=leads.leads[0].updated_at;await db.query('select save_owner_lead_v76($1,$2,$3,$4)',[interest,old,'reviewing','Private owner notes']);await assert.rejects(db.query('select save_owner_lead_v76($1,$2,$3,$4)',[interest,old,'closed','Stale notes']));
+ const chat=(await db.query('select owner_lead_chat_v76($1) as id',[interest])).rows[0].id;assert.equal((await db.query('select owner_lead_chat_v76($1) as id',[interest])).rows[0].id,chat);
+ await as(b);assert.equal((await db.query('select owner_leads_v76() as data')).rows[0].data.leads.length,0);assert.equal((await db.query('select * from my_interests_v76()')).rows[0].owner_notes,undefined);await assert.rejects(db.query('select owner_lead_chat_v76($1)',[interest]));
+ await db.exec(`reset role;update projects set status='pending' where id='${project}'`);await as(b);await db.query('select set_project_interest_v76($1,false,false)',[project]);await as(a);assert.equal((await db.query('select owner_leads_v76() as data')).rows[0].data.leads[0].phone,null);await assert.rejects(db.query('select owner_lead_chat_v76($1)',[interest]));
+ assert.equal((await db.query('select review_tools_ready_v76() as ready')).rows[0].ready,true);
+ await db.close();console.log('v76 PostgreSQL passed: aggregate verification, resubmission, stale decisions, role boundaries, audit rollback, consent, subscription scope and private follow-up.');
+})().catch(e=>{console.error(e.stack);process.exitCode=1});

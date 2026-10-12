@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="#00623f" name="theme-color"/>
+<title data-i18n="add_project.text_001">أضف مشروع | إلو مستثمر</title>
+<meta content="منصة إلو مستثمر لعرض الفرص الاستثمارية والمشاريع القابلة للبيع والشراكات." name="description"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<meta content="أضف مشروع | إلو مستثمر" property="og:title"/>
+<meta content="منصة إلو مستثمر لعرض واكتشاف الفرص الاستثمارية الموثوقة." property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<link href="assets/css/i18n.css" rel="stylesheet"/>
+<link href="assets/css/language-switcher-v70.css" rel="stylesheet"/>
+<link href="assets/css/investor-v74.css?v=74.0.0" rel="stylesheet"/></head>
+<body>
+<header class="header">
+<div class="container nav">
+<a class="logo" href="index.html"><span class="logo-badge">📈</span> إلو مستثمر</a>
+<nav class="nav-links">
+<a data-i18n="add_project.text_002" href="index.html">الرئيسية</a>
+<a data-i18n="add_project.text_003" href="opportunities.html">اكتشف الفرص</a>
+<a class="active" data-i18n="add_project.text_004" href="add-project.html">أضف مشروع</a>
+<a data-i18n="add_project.text_005" href="plans.html">الباقات</a>
+</nav>
+<div class="nav-actions">
+<a class="btn btn-outline" data-i18n="add_project.text_006" href="login.html">تسجيل الدخول</a>
+<a class="btn btn-gold" data-i18n="add_project.text_007" href="register.html">إنشاء حساب</a>
+</div>
+</div>
+</header>
+<main class="container page">
+<section class="add-layout">
+<form action="javascript:void(0)" class="panel" data-add-project-form="" enctype="multipart/form-data" method="post">
+<h2 data-i18n="add_project.text_008">أضف مشروع</h2>
+<div class="upload upload-zone" data-upload-zone="">
+<input accept="image/*" data-project-image-input="" hidden="" multiple="" name="project_images" type="file"/>
+<div class="upload-empty" data-upload-empty="">
+<b data-i18n="add_project.text_009">أضف صور المشروع</b>
+<span data-i18n="add_project.text_010">اسحب الصور هنا أو اضغط للاختيار</span>
+<small data-i18n="add_project.text_011">يمكنك رفع حتى 10 صور</small>
+</div>
+<div class="preview-grid" data-preview-grid=""></div>
+</div>
+<div class="form-grid" style="margin-top:18px">
+<div class="group">
+<label data-i18n="add_project.text_012">نوع الفرصة</label>
+<select name="type" required="">
+<option data-i18n="add_project.text_013" value="">اختر نوع الفرصة</option>
+<option data-i18n="add_project.text_014" value="مشروع للبيع">مشروع للبيع</option>
+<option data-i18n="add_project.text_015" value="شراكة">شراكة</option>
+<option data-i18n="add_project.text_016" value="فكرة استثمارية">فكرة استثمارية</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="add_project.text_017">اسم المشروع</label>
+<input data-i18n-placeholder="add_project.placeholder_018" name="title" placeholder="اكتب اسم المشروع" required=""/>
+</div>
+<div class="group">
+<label data-i18n="add_project.text_019">المجال</label>
+<select name="category" required="">
+<option data-i18n="add_project.text_020" value="">اختر المجال</option>
+<option data-i18n="add_project.text_021" value="restaurants">مطاعم</option>
+<option data-i18n="add_project.text_022" value="tech">تقنية</option>
+<option data-i18n="add_project.text_023" value="commerce">تجارة</option>
+<option data-i18n="add_project.text_024" value="services">خدمات</option>
+<option data-i18n="add_project.text_025" value="contracting">مقاولات</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="add_project.text_026">الموقع</label>
+<input data-i18n-placeholder="add_project.placeholder_027" name="location" placeholder="مثال: مسقط - بوشر" required=""/>
+</div>
+<div class="group">
+<label data-i18n="add_project.text_028">السعر المطلوب</label>
+<input data-i18n-placeholder="add_project.placeholder_029" name="price" placeholder="السعر المطلوب (ر.ع)" required="" type="number"/>
+</div>
+<div class="group">
+<label data-i18n="add_project.text_030">الربح الشهري</label>
+<input data-i18n-placeholder="add_project.placeholder_031" name="monthly_profit" placeholder="مثال: 850" type="number"/>
+</div>
+<div class="group span2">
+<label data-i18n="add_project.text_032">وصف المشروع</label>
+<textarea data-i18n-placeholder="add_project.placeholder_033" name="description" placeholder="اكتب وصف المشروع" required=""></textarea>
+</div>
+<div class="group span2 verify-upload-box">
+<label data-i18n="add_project.text_034">وثائق التحقق من المشروع</label>
+<p data-i18n="add_project.text_035">لزيادة ثقة المستثمرين وتسريع البيع، ارفع السجل التجاري أو أوراق الشركة أو الترخيص.</p>
+<input accept=".pdf,image/*" multiple="" name="project_verification_files" type="file"/>
+<small data-i18n="add_project.text_036">اختياري الآن، لكنه يساعد في الحصول على شارة “مشروع موثق”.</small>
+</div>
+<button class="btn btn-green span2" data-i18n="add_project.text_037" type="submit">إرسال للمراجعة</button>
+</div>
+</form>
+<aside class="panel">
+<h2 data-i18n="add_project.text_038">نصائح لقبول المشروع</h2>
+<p data-i18n="add_project.text_039" style="color:var(--muted);line-height:2">
+        أضف صورة واضحة للمشروع مع معلومات دقيقة عن السعر، الأرباح، الموقع، وسبب البيع أو الشراكة.
+      </p>
+<div class="specs" style="margin-top:16px">
+<div class="spec"><span data-i18n="add_project.text_040">الصورة</span><b data-i18n="add_project.text_041">واضحة وأفقية</b></div>
+<div class="spec"><span data-i18n="add_project.text_042">الوصف</span><b data-i18n="add_project.text_043">تفاصيل مقنعة</b></div>
+<div class="spec"><span data-i18n="add_project.text_044">الأرقام</span><b data-i18n="add_project.text_045">دقيقة</b></div>
+<div class="spec"><span data-i18n="add_project.text_046">الحالة</span><b data-i18n="add_project.text_047">قيد المراجعة</b></div>
+</div>
+</aside>
+</section>
+</main>
+<nav class="bottom-nav">
+<a href="index.html"><strong>⌂</strong><span data-i18n="add_project.text_048">الرئيسية</span></a>
+<a href="opportunities.html"><strong>▦</strong><span data-i18n="add_project.text_049">المشاريع</span></a>
+<a class="active" href="add-project.html"><strong class="plus">+</strong><span></span></a>
+<a href="chat.html"><strong>💬</strong><span data-i18n="add_project.text_050">المحادثة</span></a>
+<a href="user-dashboard.html"><strong>👤</strong><span data-i18n="add_project.text_051">حسابي</span></a>
+</nav>
+<footer class="footer">
+<div class="container footer-inner">
+<div>
+<a class="logo" href="index.html"><span class="logo-badge">📈</span> إلو مستثمر</a>
+<p data-i18n="add_project.text_052">منصة تربط المستثمرين بأصحاب المشاريع والفرص الاستثمارية الواعدة.</p>
+</div>
+<div>
+<h3 data-i18n="add_project.text_053">روابط</h3>
+<a data-i18n="add_project.text_054" href="opportunities.html">الفرص</a>
+<a data-i18n="add_project.text_055" href="add-project.html">أضف مشروع</a>
+<a data-i18n="add_project.text_056" href="plans.html">الباقات</a>
+</div>
+<div>
+<h3 data-i18n="add_project.text_057">الإدارة</h3>
+<a data-i18n="add_project.text_058" href="admin-dashboard.html">لوحة الإدارة</a>
+<a data-i18n="add_project.text_059" href="login.html">الدخول</a>
+</div>
+</div>
+<div class="footer-bottom" data-i18n="add_project.text_060">© 2026 إلو مستثمر — جميع الحقوق محفوظة</div>
+</footer>
+<script src="assets/js/app.js?v=76.0.0"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/language-switcher-v70.js"></script>
+</body>
+</html>

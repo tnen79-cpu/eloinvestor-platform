@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="#00623f" name="theme-color"/>
+<title data-i18n="admin_project_preview.text_001">معاينة المشروع | إلو مستثمر</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<meta content="معاينة المشروع | إلو مستثمر" property="og:title"/>
+<meta content="منصة إلو مستثمر لعرض واكتشاف الفرص الاستثمارية الموثوقة." property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<style>html:not(.admin-guard-ready) body{visibility:hidden}</style>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/admin-guard.js"></script>
+<link href="assets/css/i18n.css" rel="stylesheet"/>
+<link href="assets/css/language-switcher-v70.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="header">
+<div class="container nav">
+<a class="logo" href="admin-dashboard.html"><span class="logo-badge">📈</span> الإدارة</a>
+<nav class="nav-links">
+<a data-i18n="admin_project_preview.text_002" href="admin-dashboard.html">لوحة الإدارة</a>
+<a data-i18n="admin_project_preview.text_003" href="admin-verification.html">توثيق المستثمرين</a>
+<a data-i18n="admin_project_preview.text_004" href="opportunities.html">الموقع العام</a>
+</nav>
+<div class="nav-actions">
+<a class="btn btn-outline" data-edit-link="" data-i18n="admin_project_preview.text_005" href="#">تعديل المشروع</a>
+<a class="btn btn-gold" data-i18n="admin_project_preview.text_006" href="admin-dashboard.html">رجوع</a>
+</div>
+</div>
+</header>
+<main class="container page" data-admin-project-review="" data-project-details="">
+<section class="page-hero">
+<h1 data-i18n="admin_project_preview.text_007">معاينة المشروع قبل النشر</h1>
+<p data-i18n="admin_project_preview.text_008">راجع بيانات المشروع، الملفات، وصاحب الطلب قبل القبول أو التوثيق.</p>
+</section>
+<section class="details-layout">
+<div>
+<div class="gallery-card">
+<div class="main-photo">
+<img alt="صورة المشروع" data-main-img="" src=""/>
+</div>
+<div class="thumbs">
+<button class="thumb" type="button">
+<img alt="" data-thumb="" src=""/>
+</button>
+</div>
+</div>
+<section class="info-card" style="margin-top:22px">
+<div class="tabs">
+<span class="tab active" data-i18n="admin_project_preview.text_009">التفاصيل</span>
+<span class="tab" data-i18n="admin_project_preview.text_010">المراجعة</span>
+</div>
+<h3 data-i18n="admin_project_preview.text_011">وصف المشروع</h3>
+<p data-description="" style="line-height:2;color:var(--muted)"></p>
+<h3 data-i18n="admin_project_preview.text_012">ملاحظة الإدارة</h3>
+<p data-admin-note="" style="line-height:2;color:#b45309"></p>
+<div class="project-insights">
+<div>
+<span data-i18n="admin_project_preview.text_013">المشاهدات</span>
+<b data-views-count="">0</b>
+</div>
+<div>
+<span data-i18n="admin_project_preview.text_014">طلبات التواصل</span>
+<b data-contacts-count="">0</b>
+</div>
+</div>
+</section>
+<section class="panel admin-owner-box" style="margin-top:22px">
+<h2 data-i18n="admin_project_preview.text_015">صاحب المشروع</h2>
+<div data-admin-project-owner="" data-i18n="admin_project_preview.text_016">
+          جاري تحميل بيانات صاحب المشروع...
+        </div>
+</section>
+<section class="panel admin-project-docs-box" style="margin-top:22px">
+<div class="account-panel-head">
+<div>
+<h2 data-i18n="admin_project_preview.text_017">وثائق تحقق المشروع</h2>
+<p data-i18n="admin_project_preview.text_018">افتح الوثائق وطابق اسم السجل/الشركة مع بيانات المشروع قبل منح شارة التوثيق.</p>
+</div>
+<span class="status-pill" data-i18n="admin_project_preview.text_019" data-project-verification-status="">غير موثق</span>
+</div>
+<div data-admin-project-verification-files="" data-i18n="admin_project_preview.text_020">
+          جاري تحميل وثائق التحقق...
+        </div>
+</section>
+</div>
+<aside class="summary-card">
+<span class="status-pill" data-i18n="admin_project_preview.text_021" data-status="">قيد المراجعة</span>
+<h1 data-title=""></h1>
+<div class="place" data-location=""></div>
+<div class="price-big" data-price=""></div>
+<div>الربح الشهري <b data-profit=""></b></div>
+<div class="specs">
+<div class="spec"><span data-i18n="admin_project_preview.text_022">نوع الفرصة</span><b data-type=""></b></div>
+<div class="spec"><span data-i18n="admin_project_preview.text_023">المجال</span><b data-category=""></b></div>
+</div>
+<div class="admin-review-actions">
+<button class="btn btn-green btn-block" data-i18n="admin_project_preview.text_024" onclick="approveProject(new URLSearchParams(location.search).get('id'))">
+          قبول ونشر
+        </button>
+<button class="btn btn-green btn-block" data-i18n="admin_project_preview.text_025" onclick="approveProjectAndVerify(new URLSearchParams(location.search).get('id'))">
+          قبول + توثيق المشروع
+        </button>
+<button class="btn btn-outline btn-block" data-i18n="admin_project_preview.text_026" onclick="verifyProjectOnly(new URLSearchParams(location.search).get('id'))">
+          توثيق المشروع فقط
+        </button>
+<button class="btn btn-soft btn-block" data-i18n="admin_project_preview.text_027" onclick="rejectProjectVerificationOnly(new URLSearchParams(location.search).get('id'))">
+          رفض التوثيق فقط
+        </button>
+<button class="btn btn-soft btn-block" data-i18n="admin_project_preview.text_028" onclick="returnProject(new URLSearchParams(location.search).get('id'))">
+          إرجاع للتعديل
+        </button>
+<button class="btn btn-soft btn-block" data-i18n="admin_project_preview.text_029" onclick="rejectProject(new URLSearchParams(location.search).get('id'))">
+          رفض المشروع
+        </button>
+<button class="btn btn-danger btn-block" data-i18n="admin_project_preview.text_030" onclick="deleteProject(new URLSearchParams(location.search).get('id'))">
+          حذف
+        </button>
+</div>
+<div class="verification-warning" data-i18n="admin_project_preview.text_031" style="margin-top:16px">
+        ⚠️ لا تمنح شارة التوثيق إلا بعد مطابقة المستندات مع اسم المشروع وصاحب الحساب.
+      </div>
+</aside>
+</section>
+</main>
+<script src="assets/js/app.js?v=76.0.0"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/language-switcher-v70.js"></script>
+</body>
+</html>

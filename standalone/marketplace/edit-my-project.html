@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="#00623f" name="theme-color"/>
+<title data-i18n="edit_my_project.text_001">تعديل مشروعي | إلو مستثمر</title>
+<meta content="تعديل مشروعك في منصة إلو مستثمر." name="description"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<meta content="تعديل مشروعي | إلو مستثمر" property="og:title"/>
+<meta content="منصة إلو مستثمر لعرض واكتشاف الفرص الاستثمارية الموثوقة." property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<link href="assets/css/i18n.css" rel="stylesheet"/>
+<link href="assets/css/language-switcher-v70.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="header">
+<div class="container nav">
+<a class="logo" href="index.html"><span class="logo-badge">📈</span> إلو مستثمر</a>
+<nav class="nav-links">
+<a data-i18n="edit_my_project.text_002" href="index.html">الرئيسية</a>
+<a data-i18n="edit_my_project.text_003" href="opportunities.html">اكتشف الفرص</a>
+<a data-i18n="edit_my_project.text_004" href="add-project.html">أضف مشروع</a>
+<a class="active" data-i18n="edit_my_project.text_005" href="user-dashboard.html">حسابي</a>
+</nav>
+<div class="nav-actions">
+<a class="btn btn-outline" data-i18n="edit_my_project.text_006" href="user-dashboard.html">رجوع للوحة</a>
+</div>
+</div>
+</header>
+<main class="container page">
+<section class="page-hero">
+<h1 data-i18n="edit_my_project.text_007">تعديل مشروعي</h1>
+<p data-i18n="edit_my_project.text_008">عدّل بيانات المشروع ثم أرسله للمراجعة مرة ثانية.</p>
+</section>
+<section class="add-layout">
+<form action="javascript:void(0)" class="panel" data-owner-edit-form="" method="post">
+<h2 data-i18n="edit_my_project.text_009">بيانات المشروع</h2>
+<div class="form-grid" style="margin-top:18px">
+<div class="group">
+<label data-i18n="edit_my_project.text_010">نوع الفرصة</label>
+<select name="type" required="">
+<option data-i18n="edit_my_project.text_011" value="">اختر نوع الفرصة</option>
+<option data-i18n="edit_my_project.text_012" value="مشروع للبيع">مشروع للبيع</option>
+<option data-i18n="edit_my_project.text_013" value="شراكة">شراكة</option>
+<option data-i18n="edit_my_project.text_014" value="فكرة استثمارية">فكرة استثمارية</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="edit_my_project.text_015">اسم المشروع</label>
+<input name="title" required=""/>
+</div>
+<div class="group">
+<label data-i18n="edit_my_project.text_016">المجال</label>
+<select name="category" required="">
+<option data-i18n="edit_my_project.text_017" value="">اختر المجال</option>
+<option data-i18n="edit_my_project.text_018" value="restaurants">مطاعم</option>
+<option data-i18n="edit_my_project.text_019" value="tech">تقنية</option>
+<option data-i18n="edit_my_project.text_020" value="commerce">تجارة</option>
+<option data-i18n="edit_my_project.text_021" value="services">خدمات</option>
+<option data-i18n="edit_my_project.text_022" value="contracting">مقاولات</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="edit_my_project.text_023">الموقع</label>
+<input name="location" required=""/>
+</div>
+<div class="group">
+<label data-i18n="edit_my_project.text_024">السعر المطلوب</label>
+<input name="price" required="" type="number"/>
+</div>
+<div class="group">
+<label data-i18n="edit_my_project.text_025">الربح الشهري</label>
+<input name="monthly_profit" type="number"/>
+</div>
+<div class="group span2">
+<label data-i18n="edit_my_project.text_026">وصف المشروع</label>
+<textarea name="description" required=""></textarea>
+</div>
+<button class="btn btn-green span2" data-i18n="edit_my_project.text_027" type="submit">حفظ وإرسال للمراجعة</button>
+</div>
+</form>
+<aside class="panel">
+<h2 data-i18n="edit_my_project.text_028">ملاحظة الإدارة</h2>
+<p data-i18n="edit_my_project.text_029" data-owner-admin-note="" style="color:#b45309;line-height:2;font-weight:800">
+        جاري تحميل الملاحظة...
+      </p>
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"/>
+<p style="color:var(--muted);line-height:2">
+        بعد الحفظ ستعود حالة المشروع إلى <b data-i18n="edit_my_project.text_030">قيد المراجعة</b> حتى تقوم الإدارة بمراجعته مرة أخرى.
+      </p>
+</aside>
+</section>
+<p><a class="btn btn-outline" data-project-verification-link="" href="verification.html">مستندات توثيق المشروع وإعادة التقديم</a></p></main>
+<nav class="bottom-nav">
+<a href="index.html"><strong>⌂</strong><span data-i18n="edit_my_project.text_031">الرئيسية</span></a>
+<a href="opportunities.html"><strong>▦</strong><span data-i18n="edit_my_project.text_032">المشاريع</span></a>
+<a href="add-project.html"><strong class="plus">+</strong><span></span></a>
+<a href="chat.html"><strong>💬</strong><span data-i18n="edit_my_project.text_033">المحادثة</span></a>
+<a class="active" href="user-dashboard.html"><strong>👤</strong><span data-i18n="edit_my_project.text_034">حسابي</span></a>
+</nav>
+<script src="assets/js/app.js?v=76.0.0"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/language-switcher-v70.js"></script>
+</body>
+</html>

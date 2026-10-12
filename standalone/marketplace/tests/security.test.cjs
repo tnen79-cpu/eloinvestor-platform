@@ -1,0 +1,26 @@
+const {PGlite}=require('@electric-sql/pglite');const fs=require('fs'),assert=require('node:assert/strict');
+(async()=>{
+ const db=new PGlite();
+ const a='00000000-0000-4000-8000-000000000001',b='00000000-0000-4000-8000-000000000002',admin='00000000-0000-4000-8000-000000000003',billing='00000000-0000-4000-8000-000000000004';
+ await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
+ create schema auth;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+ grant usage on schema auth,public to anon,authenticated;grant execute on function auth.uid() to public;
+ create table public.users(auth_id uuid primary key,role text default 'user',plan text default 'free',subscription_status text default 'free',remaining_projects integer default 1,featured_projects integer default 0,free_project_used boolean default false,is_blocked boolean default false,verification_status text default 'not_verified',name text,investor_preferences jsonb default '{}');
+ create table public.investor_saved_projects(id text primary key,investor_auth_id uuid,project_id text,project_snapshot jsonb default '{}');
+ create function public.is_admin_staff(permission text default null) returns boolean language sql stable security definer as $$select auth.uid()='${admin}'::uuid or (auth.uid()='${billing}'::uuid and permission='plans')$$;
+ insert into users(auth_id,name) values('${a}','A'),('${b}','B');insert into investor_saved_projects values('s1','${a}','p1','{"review":{"notes":"private"}}'),('s2','${b}','p2','{"review":{"notes":"other"}}');
+ grant select,insert,update,delete on users,investor_saved_projects to anon,authenticated;
+ create policy legacy_users on users for all to public using(true) with check(true);create policy legacy_saved on investor_saved_projects for all to public using(true) with check(true);`);
+ const sql=fs.readFileSync(require('node:path').resolve(__dirname,'../supabase/migrations/20261011225215_investor_private_workspace.sql'),'utf8');await db.exec(sql);await db.exec(sql);
+ await db.exec("set role anon;set test.uid='';");assert.equal((await db.query('select * from users')).rows.length,0);assert.equal((await db.query('select * from investor_saved_projects')).rows.length,0);
+ await db.exec(`reset role;set role authenticated;set test.uid='${a}';`);
+ assert.equal((await db.query('select * from users')).rows.length,1);assert.equal((await db.query('select * from investor_saved_projects')).rows.length,1);
+ assert.equal((await db.query('select marketplace_security_ready() as ready')).rows[0].ready,true);
+ await db.exec(`update users set investor_preferences='{"budget_max":25000}' where auth_id='${a}';update investor_saved_projects set project_snapshot='{"review":{"notes":"edited"}}' where id='s1';`);
+ await assert.rejects(db.query(`update users set role='admin' where auth_id='${a}'`));await assert.rejects(db.query(`update users set remaining_projects=999 where auth_id='${a}'`));await assert.rejects(db.query(`update users set verification_status='verified' where auth_id='${a}'`));
+ await assert.rejects(db.query(`select consume_project_credit('${b}')`));
+ await db.query(`select consume_project_credit('${a}')`);assert.equal((await db.query('select remaining_projects from users')).rows[0].remaining_projects,0);
+ assert.equal((await db.query(`update investor_saved_projects set project_snapshot='{}' where id='s2' returning id`)).rows.length,0);
+ await db.exec(`reset role;set role authenticated;set test.uid='${billing}';`);await db.query(`update users set plan='pro' where auth_id='${a}'`);await assert.rejects(db.query(`update users set role='admin' where auth_id='${a}'`));
+ await db.close();console.log('PostgreSQL security tests passed: legacy-policy containment, anonymous isolation, user isolation, role/credit/verification protection, billing scope and own-credit RPC.');
+})().catch(e=>{console.error(e.message);process.exitCode=1});

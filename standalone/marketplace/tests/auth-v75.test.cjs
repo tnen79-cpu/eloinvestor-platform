@@ -1,0 +1,9 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),{parseHTML}=require('linkedom'),path=require('path');const base=path.resolve(__dirname,'..')+'/';
+(async()=>{
+ const {window,document}=parseHTML(fs.readFileSync(base+'register.html','utf8'));let writes=0;window.supabase={};window.supabaseClient={auth:{signUp:async()=>({data:{user:{id:'pending-user'},session:null}})},from:()=>{writes++;throw new Error('Unauthenticated write')}};
+ const location=new Proxy(new URL('https://test/register.html'),{get(t,k){const v=Reflect.get(t,k,t);return typeof v==='function'?v.bind(t):v},set(t,k,v){return Reflect.set(t,k,k==='href'?new URL(v,t).href:v,t)}});const ctx=vm.createContext({window,document,location,URL,URLSearchParams,setTimeout,clearTimeout,console,alert(){}});vm.runInContext(fs.readFileSync(base+'assets/js/auth.js','utf8'),ctx);
+ for(const value of ['javascript:alert(1)','https://evil.test/','//evil.test/','data:text/html,x','/admin-dashboard.html']){location.search='?next='+encodeURIComponent(value);assert.equal(ctx.getSafeNextUrl(),'user-dashboard.html');}
+ location.search='?next='+encodeURIComponent('project-details.html?id=123');assert.equal(ctx.getSafeNextUrl(),'/project-details.html?id=123');assert.equal(await ctx.withTimeout(Promise.resolve(1),100),1);await assert.rejects(ctx.withTimeout(new Promise(()=>{}),1));
+ const form=document.querySelector('[data-register-form]');form.reportValidity=()=>true;form.querySelector('[name=name]').value='New user';form.querySelector('[name=email]').value='new@example.test';form.querySelector('[name=password]').value='password-long';await ctx.registerUser(form);assert.equal(writes,0,'no profile write before an authenticated signup session');
+ console.log('v75 auth tests passed: redirect allowlist, timeout cleanup and email-confirmation signup without profile resets.');
+})().catch(e=>{console.error(e);process.exitCode=1});

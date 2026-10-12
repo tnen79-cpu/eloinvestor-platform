@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="#00623f" name="theme-color"/>
+<title data-i18n="chat.text_001">المحادثات | إلو مستثمر</title>
+<meta content="محادثات داخلية آمنة بين المستثمرين وأصحاب المشاريع داخل منصة إلو مستثمر." name="description"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<meta content="المحادثات | إلو مستثمر" property="og:title"/>
+<meta content="منصة إلو مستثمر لعرض واكتشاف الفرص الاستثمارية الموثوقة." property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<link href="assets/css/i18n.css" rel="stylesheet"/>
+<link href="assets/css/language-switcher-v70.css" rel="stylesheet"/>
+</head>
+<body class="chat-page-body">
+<header class="header">
+<div class="container nav">
+<a class="logo" href="index.html"><span class="logo-badge">📈</span> إلو مستثمر</a>
+<nav class="nav-links">
+<a data-i18n="chat.text_002" href="index.html">الرئيسية</a>
+<a data-i18n="chat.text_003" href="opportunities.html">اكتشف الفرص</a>
+<a data-i18n="chat.text_004" href="add-project.html">أضف مشروع</a>
+<a data-i18n="chat.text_005" href="user-dashboard.html">حسابي</a>
+</nav>
+<div class="nav-actions">
+<a class="btn btn-outline" data-i18n="chat.text_006" href="user-dashboard.html">لوحتي</a>
+</div>
+</div>
+</header>
+<main class="chat-shell" data-chat-app="">
+<aside class="chat-sidebar-panel">
+<div class="chat-sidebar-head">
+<div>
+<span class="eyebrow" data-i18n="chat.text_007">مركز الرسائل</span>
+<h1 data-i18n="chat.text_008">المحادثات</h1>
+</div>
+<button class="btn btn-outline chat-refresh" data-chat-refresh="" data-i18n="chat.text_009" type="button">تحديث</button>
+</div>
+<div class="chat-search-box">
+<input data-i18n-placeholder="chat.placeholder_010" id="chatSearch" placeholder="ابحث باسم المشروع أو الطرف الآخر..." type="search"/>
+</div>
+<div class="chat-conversations-list" id="chatConversations">
+<div class="chat-skeleton"></div>
+<div class="chat-skeleton short"></div>
+<div class="chat-skeleton"></div>
+</div>
+</aside>
+<section class="chat-room-panel">
+<div class="chat-room-header" id="chatRoomHeader">
+<div>
+<span class="eyebrow" data-i18n="chat.text_011">اختر محادثة</span>
+<h2 data-i18n="chat.text_012">ابدأ محادثة داخلية آمنة</h2>
+<p data-i18n="chat.text_013">التواصل يتم داخل المنصة بدون إظهار الإيميل.</p>
+</div>
+</div>
+<div class="chat-messages-panel" id="chatMessages">
+<div class="chat-empty-state">
+<div>💬</div>
+<h3 data-i18n="chat.text_014">اختر محادثة من القائمة</h3>
+<p data-i18n="chat.text_015">أو افتح الشات من طلبات المستثمرين/صفحة المشروع وسيتم إنشاء المحادثة تلقائيًا.</p>
+</div>
+</div>
+<form autocomplete="off" class="chat-compose" id="chatForm">
+<label class="chat-attach-btn" data-i18n-title="chat.title_016" title="إرفاق ملف">
+<input accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" disabled="" hidden="" id="chatAttachmentInput" type="file"/>
+<span>📎</span>
+</label>
+<div class="chat-compose-main">
+<div class="chat-attachment-preview" hidden="" id="chatAttachmentPreview"></div>
+<input data-i18n-placeholder="chat.placeholder_017" disabled="" id="chatMessageInput" maxlength="2000" name="message" placeholder="اكتب رسالتك هنا..."/>
+</div>
+<button class="btn btn-green" data-i18n="chat.text_018" disabled="" type="submit">إرسال</button>
+</form>
+</section>
+</main>
+<nav class="bottom-nav">
+<a href="index.html"><strong>⌂</strong><span data-i18n="chat.text_019">الرئيسية</span></a>
+<a href="opportunities.html"><strong>▦</strong><span data-i18n="chat.text_020">المشاريع</span></a>
+<a href="add-project.html"><strong class="plus">+</strong><span></span></a>
+<a class="active" href="chat.html"><strong>💬</strong><span data-i18n="chat.text_021">المحادثة</span></a>
+<a href="user-dashboard.html"><strong>👤</strong><span data-i18n="chat.text_022">حسابي</span></a>
+</nav>
+<script src="assets/js/app.js?v=76.0.0"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/language-switcher-v70.js"></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="#00623f" name="theme-color"/>
+<title data-i18n="admin_project_edit.text_001">تعديل المشروع | إلو مستثمر</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<meta content="تعديل المشروع | إلو مستثمر" property="og:title"/>
+<meta content="منصة إلو مستثمر لعرض واكتشاف الفرص الاستثمارية الموثوقة." property="og:description"/>
+<meta content="website" property="og:type"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<style>html:not(.admin-guard-ready) body{visibility:hidden}</style>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/admin-guard.js"></script>
+<link href="assets/css/i18n.css" rel="stylesheet"/>
+<link href="assets/css/language-switcher-v70.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="header">
+<div class="container nav">
+<a class="logo" href="admin-dashboard.html"><span class="logo-badge">📈</span> الإدارة</a>
+<nav class="nav-links">
+<a data-i18n="admin_project_edit.text_002" href="admin-dashboard.html">لوحة الإدارة</a>
+<a data-i18n="admin_project_edit.text_003" data-preview-link="" href="#">معاينة المشروع</a>
+<a data-i18n="admin_project_edit.text_004" href="opportunities.html">الموقع العام</a>
+</nav>
+<div class="nav-actions">
+<a class="btn btn-gold" data-i18n="admin_project_edit.text_005" href="admin-dashboard.html">رجوع</a>
+</div>
+</div>
+</header>
+<main class="container page">
+<section class="page-hero">
+<h1 data-i18n="admin_project_edit.text_006">تعديل بيانات المشروع</h1>
+<p data-i18n="admin_project_edit.text_007">عدّل بيانات المشروع قبل القبول أو الإرجاع للتعديل.</p>
+</section>
+<section class="add-layout">
+<form action="javascript:void(0)" class="panel" data-admin-edit-form="" method="post">
+<h2 data-i18n="admin_project_edit.text_008">بيانات المشروع</h2>
+<div class="form-grid">
+<div class="group">
+<label data-i18n="admin_project_edit.text_009">اسم المشروع</label>
+<input name="title" required=""/>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_010">نوع الفرصة</label>
+<select name="type" required="">
+<option data-i18n="admin_project_edit.text_011" value="مشروع للبيع">مشروع للبيع</option>
+<option data-i18n="admin_project_edit.text_012" value="شراكة">شراكة</option>
+<option data-i18n="admin_project_edit.text_013" value="فكرة استثمارية">فكرة استثمارية</option>
+<option data-i18n="admin_project_edit.text_014" value="شراكة تشغيلية">شراكة تشغيلية</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_015">المجال</label>
+<select name="category" required="">
+<option data-i18n="admin_project_edit.text_016" value="restaurants">مطاعم</option>
+<option data-i18n="admin_project_edit.text_017" value="tech">تقنية</option>
+<option data-i18n="admin_project_edit.text_018" value="commerce">تجارة</option>
+<option data-i18n="admin_project_edit.text_019" value="services">خدمات</option>
+<option data-i18n="admin_project_edit.text_020" value="contracting">مقاولات</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_021">الموقع</label>
+<input name="location" required=""/>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_022">السعر</label>
+<input name="price" required="" type="number"/>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_023">الربح الشهري</label>
+<input name="monthly_profit" type="number"/>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_024">الحالة</label>
+<select name="status">
+<option data-i18n="admin_project_edit.text_025" value="pending">قيد المراجعة</option>
+<option data-i18n="admin_project_edit.text_026" value="approved">مقبول</option>
+<option data-i18n="admin_project_edit.text_027" value="needs_revision">راجع للتعديل</option>
+<option data-i18n="admin_project_edit.text_028" value="rejected">مرفوض</option>
+</select>
+</div>
+<div class="group">
+<label data-i18n="admin_project_edit.text_029">ملاحظة الإدارة</label>
+<input data-i18n-placeholder="admin_project_edit.placeholder_030" name="admin_note" placeholder="مثال: يرجى تعديل السعر أو إضافة تفاصيل"/>
+</div>
+<div class="group span2">
+<label data-i18n="admin_project_edit.text_031">وصف المشروع</label>
+<textarea name="description" required=""></textarea>
+</div>
+<button class="btn btn-green span2" data-i18n="admin_project_edit.text_032" type="submit">حفظ التعديلات</button>
+</div>
+</form>
+<aside class="panel">
+<h2 data-i18n="admin_project_edit.text_033">ملاحظات</h2>
+<p data-i18n="admin_project_edit.text_034" style="color:var(--muted);line-height:2">
+        بعد حفظ التعديلات يمكنك معاينة المشروع ثم قبوله أو إرجاعه للتعديل.
+      </p>
+</aside>
+</section>
+</main>
+<script src="assets/js/app.js?v=76.0.0"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/language-switcher-v70.js"></script>
+</body>
+</html>

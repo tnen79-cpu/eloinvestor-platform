@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),C=require('../assets/js/investor-core.js');
+const s=C.scenario(25000,500,5000);assert.equal(s.total,30000);assert.equal(s.roi,20);assert.equal(s.paybackMonths,60);
+assert.equal(C.scenario(25000,0).paybackMonths,null);assert.equal(C.scenario(25000,-500).roi,-24);
+assert.equal(C.scenario(0,500),null);assert.equal(C.scenario(100,500,-1),null);
+assert.equal(C.match({price:25000},{budget_max:10000}).score,0);
+assert.equal(C.match({category:'restaurants'},{interests:['مطاعم']}).score,100);
+assert.equal(C.match({price:20000,category:'tech'},{budget_max:25000,interests:['مطاعم']}).score,50);
+assert.equal(C.match({verification_status:'verified'},{}).score,null);
+assert.equal(C.match({price:5000},{budget_min:10000,budget_max:30000}).score,0);
+assert.deepEqual(C.review({stage:'admin',checked:['ownership','ownership','fake'],notes:'x'.repeat(3000)}),{stage:'shortlist',checked:['ownership'],notes:'x'.repeat(2000)});
+assert.equal(C.searches([{id:'one',name:'A',filters:{q:'tea',secret:'drop'}}])[0].filters.secret,undefined);
+console.log('Investor scenario, matching and input normalization tests passed.');
