@@ -81,7 +81,7 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
         </form>
 
         <div className="results">
-          <div className="results-head"><div><h2>{tr('opportunities', 'featured_deals', isAr ? 'فرص مميزة' : 'Featured deals')}</h2><span>{isAr ? `تم العثور على ${list.length} ${tr('opportunities', 'found_suffix', 'فرصة مناسبة')}` : `${list.length} ${tr('opportunities', 'found_suffix', 'opportunities found')}`}</span></div><div className="flex gap-2"><button className="btn btn-light !px-4">▦</button><button className="btn btn-light !px-4">☰</button></div></div>
+          <div className="results-head"><div><h2>{tr('opportunities', 'featured_deals', isAr ? 'فرص مميزة' : 'Featured deals')}</h2><span>{isAr ? `تم العثور على ${list.length} ${tr('opportunities', 'found_suffix', 'فرصة مناسبة')}` : `${list.length} ${tr('opportunities', 'found_suffix', 'opportunities found')}`}</span></div><nav className="flex flex-wrap gap-2" aria-label={isAr ? "أدوات المستثمر" : "Investor tools"}><Link className="btn btn-light !px-4" href={`/${activeCountry.code}/${lang}/compare`}>{isAr ? "مقارنة الفرص" : "Compare"}</Link><Link className="btn btn-light !px-4" href={`/${activeCountry.code}/${lang}/workspace`}>{isAr ? "مساحة المتابعة" : "My workspace"}</Link></nav></div>
           {list.length ? <div className="market-grid">{pageRows.map((project) => <ProjectCard key={project.slug} project={project} lang={lang} country={activeCountry} />)}</div> : <EmptyState lang={lang} country={activeCountry.code} />}
         </div>
       </section>
