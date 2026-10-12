@@ -31,9 +31,9 @@ export async function getUser(req: NextRequest) {
 
 export async function isAdmin(db: any, user: any) {
   const { data } = await db.from('users').select('role,account_type,admin_role,is_admin,admin_status,email').or(`auth_id.eq.${user.id},id.eq.${user.id},email.eq.${user.email}`).maybeSingle();
-  const role = String(data?.admin_role || data?.role || data?.account_type || user.user_metadata?.role || '').toLowerCase();
+  const role = String(data?.admin_role || data?.role || '').toLowerCase();
   const status = String(data?.admin_status || 'active').toLowerCase();
-  return (data?.is_admin === true || ['admin','super_admin','owner','manager'].includes(role)) && !['suspended','revoked'].includes(status);
+  return (data?.is_admin === true || ['admin','super_admin'].includes(role)) && !['suspended','revoked'].includes(status);
 }
 
 function missingColumn(message: string) {

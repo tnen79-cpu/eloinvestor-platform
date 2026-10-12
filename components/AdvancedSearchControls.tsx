@@ -8,10 +8,13 @@ export function AdvancedSearchControls({ lang, cities = [], sectors = [] }: { la
   const router = useRouter();
   const params = useSearchParams();
   const isAr = lang === 'ar';
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(['minPrice','maxPrice','minRoi','verified','premium'].some(key=>params.has(key)));
 
+  const [error,setError]=useState('');
   function update(formData: FormData) {
+    setError('');const min=Number(formData.get('minPrice')||0),max=Number(formData.get('maxPrice')||0);if(min<0||max<0||(max>0&&min>max)){setError(isAr?'الحد الأدنى يجب ألا يتجاوز الحد الأعلى.':'Minimum price must not exceed maximum price.');return;}
     const next = new URLSearchParams();
+    const opportunityType=params.get('opportunityType');if(opportunityType)next.set('opportunityType',opportunityType);
     for (const [key, value] of formData.entries()) {
       const v = String(value || '').trim();
       if (v && v !== 'all' && v !== '0') next.set(key, v);
@@ -40,18 +43,19 @@ export function AdvancedSearchControls({ lang, cities = [], sectors = [] }: { la
           <option value="price_asc">{isAr ? 'الأقل سعرًا' : 'Lowest price'}</option>
           <option value="views_desc">{isAr ? 'الأكثر مشاهدة' : 'Most viewed'}</option>
         </select>
-        <button type="button" onClick={() => setOpen((value) => !value)} className="advanced-toggle"><SlidersHorizontal size={17} /> {isAr ? 'متقدم' : 'Advanced'}</button>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="advanced-toggle"><SlidersHorizontal size={17} /> {isAr ? 'متقدم' : 'Advanced'}</button>
         <button className="advanced-submit">{isAr ? 'تطبيق' : 'Apply'}</button>
       </div>
-      {open ? (
-        <div className="advanced-extra">
-          <input name="minPrice" inputMode="numeric" defaultValue={params.get('minPrice') || ''} placeholder={isAr ? 'أقل سعر' : 'Min price'} />
-          <input name="maxPrice" inputMode="numeric" defaultValue={params.get('maxPrice') || ''} placeholder={isAr ? 'أعلى سعر' : 'Max price'} />
-          <input name="minRoi" inputMode="numeric" defaultValue={params.get('minRoi') || ''} placeholder={isAr ? 'أقل عائد %' : 'Min ROI %'} />
+      {
+        <div className="advanced-extra" style={{ display: open ? undefined : 'none' }}>
+          <input name="minPrice" type="number" min="0" step="any" defaultValue={params.get('minPrice') || ''} placeholder={isAr ? 'أقل سعر' : 'Min price'} />
+          <input name="maxPrice" type="number" min="0" step="any" defaultValue={params.get('maxPrice') || ''} placeholder={isAr ? 'أعلى سعر' : 'Max price'} />
+          <input name="minRoi" type="number" min="0" step="any" defaultValue={params.get('minRoi') || ''} placeholder={isAr ? 'أقل عائد %' : 'Min ROI %'} />
           <label><input name="verified" type="checkbox" defaultChecked={params.get('verified') === '1'} /> {isAr ? 'موثق فقط' : 'Verified only'}</label>
           <label><input name="premium" type="checkbox" defaultChecked={params.get('premium') === '1'} /> {isAr ? 'فرص مميزة فقط' : 'Premium only'}</label>
         </div>
-      ) : null}
+      }
+      {error&&<p role="alert">{error}</p>}
     </form>
   );
 }

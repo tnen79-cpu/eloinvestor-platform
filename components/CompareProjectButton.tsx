@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { normalizeComparisonIds } from '@/lib/marketplace-math';
 import { GitCompareArrows } from 'lucide-react';
 
 type Props = { projectId: string; country: string; lang: string; compact?: boolean };
 
 function readCompareList() {
   if (typeof window === 'undefined') return [] as string[];
-  try { return JSON.parse(localStorage.getItem('elo-compare-projects') || '[]').filter(Boolean); } catch { return []; }
+  try { return normalizeComparisonIds(JSON.parse(localStorage.getItem('elo-compare-projects') || '[]')); } catch { return []; }
 }
 
 export function CompareProjectButton({ projectId, country, lang, compact = false }: Props) {
@@ -17,15 +18,17 @@ export function CompareProjectButton({ projectId, country, lang, compact = false
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    const list = readCompareList();
-    setSelected(list.includes(projectId));
-    setCount(list.length);
+    const sync = () => { const list = readCompareList(); setSelected(list.includes(projectId)); setCount(list.length); };
+    sync(); window.addEventListener('elo:compare',sync); window.addEventListener('storage',sync);
+    return () => { window.removeEventListener('elo:compare',sync); window.removeEventListener('storage',sync); };
   }, [projectId]);
 
   function toggle() {
     const list = readCompareList();
-    const next = list.includes(projectId) ? list.filter((id: string) => id !== projectId) : [...list, projectId].slice(-4);
-    localStorage.setItem('elo-compare-projects', JSON.stringify(next));
+    if (!list.includes(projectId) && list.length >= 4) { alert(isAr ? 'يمكن مقارنة 4 مشاريع كحد أقصى. أزل مشروعًا أولًا.' : 'Compare up to 4 projects. Remove one first.'); return; }
+    const next = normalizeComparisonIds(list.includes(projectId) ? list.filter((id: string) => id !== projectId) : [...list, projectId]);
+    try { localStorage.setItem('elo-compare-projects', JSON.stringify(next)); } catch { alert(isAr ? 'تعذر حفظ المقارنة في هذا المتصفح.' : 'Comparison storage is unavailable.'); return; }
+    window.dispatchEvent(new Event('elo:compare'));
     setSelected(next.includes(projectId));
     setCount(next.length);
   }

@@ -1,3 +1,4 @@
+import { normalizeCategory } from './marketplace-math';
 import type { UiProject } from './server-data';
 
 export type SearchFilters = {
@@ -60,7 +61,7 @@ export function scoreProject(project: UiProject, signals: InvestorSignals = {}) 
   const reasons: string[] = [];
 
   if (project.verified) { score += 15; reasons.push('verified_boost'); }
-  if (categories.length && categories.includes(project.category)) { score += 22; reasons.push('category_match'); }
+  if (categories.length && categories.some(category=>normalizeCategory(category)===normalizeCategory(project.category))) { score += 22; reasons.push('category_match'); }
   if (signals.preferredLocation) {
     const loc = `${project.cityAr} ${project.cityEn} ${project.governorateAr || ''} ${project.governorateEn || ''}`;
     if (includes(loc, signals.preferredLocation)) { score += 16; reasons.push('location_match'); }
@@ -86,7 +87,7 @@ export function filterProjects(projects: UiProject[], filters: SearchFilters) {
   return projects.filter((project) => {
     const text = `${project.titleAr} ${project.titleEn} ${project.summaryAr} ${project.summaryEn}`.toLowerCase();
     if (q && !text.includes(q)) return false;
-    if (filters.sector && filters.sector !== 'all' && project.category !== filters.sector) return false;
+    if (filters.sector && filters.sector !== 'all' && normalizeCategory(project.category) !== normalizeCategory(filters.sector)) return false;
     if (filters.opportunityType && filters.opportunityType !== 'all' && project.opportunityType && project.opportunityType !== filters.opportunityType) return false;
     if (filters.city && filters.city !== 'all') {
       const cityText = `${project.cityAr} ${project.cityEn} ${project.governorateAr || ''} ${project.governorateEn || ''}`.toLowerCase();

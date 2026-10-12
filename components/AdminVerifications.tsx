@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, FileText, Loader2, LockKeyhole, RefreshCcw, Search, ShieldCheck, XCircle } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { isAdminRole } from '@/lib/account';
+import { reviewVerificationRequest } from '@/lib/verification-client';
+import { PrivateDocumentButton } from '@/components/PrivateDocumentButton';
 
 type VerificationRow = {
   id: string;
@@ -14,6 +15,8 @@ type VerificationRow = {
   project_id?: string | null;
   project_title?: string | null;
   status: string;
+  review_revision: number;
+  is_current: boolean;
   document_url?: string | null;
   note?: string | null;
   notes?: string | null;
@@ -40,16 +43,8 @@ export function AdminVerifications() {
   const [notice, setNotice] = useState('');
 
   async function checkAdmin() {
-    const { data } = await supabaseBrowser.auth.getUser();
-    const user = data.user;
-    if (!user) return false;
-    const { data: profile } = await supabaseBrowser
-      .from('users')
-      .select('role,account_type,email')
-      .or(`auth_id.eq.${user.id},id.eq.${user.id},email.eq.${user.email}`)
-      .maybeSingle();
-    const role = String((profile as any)?.role || (profile as any)?.account_type || user.user_metadata?.role || '').toLowerCase();
-    return isAdminRole(role);
+    const {data,error}=await supabaseBrowser.rpc('next_admin_permission',{permission:'verifications'});
+    return !error && data===true;
   }
 
   async function load() {
@@ -64,6 +59,7 @@ export function AdminVerifications() {
     const { data, error } = await supabaseBrowser
       .from('verification_requests')
       .select('*')
+      .eq('is_current',true)
       .order('created_at', { ascending: false })
       .limit(300);
     if (error) setNotice(error.message);
@@ -83,31 +79,13 @@ export function AdminVerifications() {
   }, [items, query, status]);
 
   async function updateRequest(item: VerificationRow, nextStatus: string) {
-    const admin_note = prompt('ملاحظة الإدارة (اختياري):', item.admin_note || '') || '';
-    setSaving(true);
-    setNotice('');
-    const { error } = await supabaseBrowser
-      .from('verification_requests')
-      .update({ status: nextStatus, admin_note, reviewed_at: new Date().toISOString() })
-      .eq('id', item.id);
-
-    if (error) {
-      setNotice(error.message);
-      setSaving(false);
-      return;
-    }
-
-    if (nextStatus === 'approved') {
-      if ((item.request_type || item.type) === 'project' && item.project_id) {
-        await supabaseBrowser.from('projects').update({ is_verified: true, verification_status: 'approved' }).eq('id', item.project_id);
-      }
-      if (item.request_type === 'investor' && item.user_auth_id) {
-        await supabaseBrowser.from('users').update({ is_verified: true, verification_status: 'approved' }).or(`auth_id.eq.${item.user_auth_id},id.eq.${item.user_auth_id}`);
-      }
-    }
-
-    setSaving(false);
-    await load();
+    if (saving) return;
+    const note=prompt(nextStatus==='approved'?'ملاحظة المراجعة':'سبب القرار (5 أحرف على الأقل)',item.admin_note||'');
+    if(note===null)return;
+    setSaving(true);setNotice('');
+    try { const state=await reviewVerificationRequest(item.id,item.review_revision,nextStatus,note); await load(); setNotice('تم حفظ القرار. حالة التوثيق الإجمالية: '+state); }
+    catch(e) { setNotice((e as any)?.message||'تعذر حفظ القرار'); }
+    finally { setSaving(false); }
   }
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-blue-700" /></div>;
@@ -171,7 +149,7 @@ export function AdminVerifications() {
                     {item.admin_note ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-700">ملاحظة الإدارة: {item.admin_note}</p> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {item.document_url ? <a href={item.document_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"><FileText className="h-4 w-4" /> الملف</a> : null}
+                    {item.document_url ? <PrivateDocumentButton url={item.document_url} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"/> : null}
                     <button onClick={() => updateRequest(item, 'approved')} className="rounded-full bg-blue-600 px-4 py-3 text-sm font-black text-white">قبول</button>
                     <button onClick={() => updateRequest(item, 'revision')} className="rounded-full bg-amber-100 px-4 py-3 text-sm font-black text-amber-800">طلب تعديل</button>
                     <button onClick={() => updateRequest(item, 'rejected')} className="rounded-full bg-red-100 px-4 py-3 text-sm font-black text-red-700">رفض</button>

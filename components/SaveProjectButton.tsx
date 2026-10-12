@@ -42,6 +42,7 @@ export function SaveProjectButton({ projectId, project, lang, country, className
   }, [projectId]);
 
   async function toggle() {
+    if (loading) return;
     setLoading(true);
     try {
       let nextUserId = userId;
@@ -56,17 +57,18 @@ export function SaveProjectButton({ projectId, project, lang, country, className
       }
 
       if (saved) {
-        const { error } = await supabaseBrowser
+        const { error, data: removed } = await supabaseBrowser
           .from('investor_saved_projects')
           .delete()
           .eq('investor_auth_id', nextUserId)
-          .eq('project_id', projectId);
+          .eq('project_id', projectId).select('id');
         if (error) throw error;
+        if(!removed?.length)throw new Error(isAr?'المشروع تغيّر أو لم تتم إزالته. أعد تحميل البيانات.':'Project changed or was not removed. Reload first.');
         setSaved(false);
       } else {
         const { error } = await supabaseBrowser
           .from('investor_saved_projects')
-          .upsert({ investor_auth_id: nextUserId, project_id: projectId, project_snapshot: project }, { onConflict: 'investor_auth_id,project_id' });
+          .upsert({ investor_auth_id: nextUserId, project_id: projectId, project_snapshot: project }, { onConflict: 'investor_auth_id,project_id', ignoreDuplicates: true });
         if (error) throw error;
         setSaved(true);
       }

@@ -19,7 +19,12 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
   const [list, slides, ads, sliderEnabled, sponsored, sectors, uiTranslations] = await Promise.all([getProjectsAdvanced(activeCountry.code, rawSearch), getHomepageSlides(activeCountry.code), getPlatformAds(activeCountry.code), isHomepageSliderEnabled(), getSponsoredProjects(activeCountry.code), getSectors(activeCountry.code), getUiTranslations(lang)]);
   const tr = (namespace: string, key: string, fallback: string) => i18nText(uiTranslations, namespace, key, lang, fallback);
   const isAr = lang === 'ar';
-  const cities = Array.from(new Set(list.map((p) => isAr ? p.cityAr : p.cityEn).filter(Boolean))).slice(0, 12);
+  const pageSize=18;
+  const rawPage=Number(typeof rawSearch.page==='string'?rawSearch.page:1);
+  const page=Math.min(Math.max(1,Number.isFinite(rawPage)?Math.floor(rawPage):1),Math.max(1,Math.ceil(list.length/pageSize)));
+  const pageRows=list.slice((page-1)*pageSize,page*pageSize);
+  const pageUrl=(nextPage:number)=>{const query=new URLSearchParams();Object.entries(rawSearch).forEach(([k,v])=>{if(typeof v==='string'&&k!=='page')query.set(k,v);});query.set('page',String(nextPage));return `/${activeCountry.code}/${lang}/opportunities?${query}#results`;};
+  const cities = Array.from(new Set([...(typeof rawSearch.city==='string'?[rawSearch.city]:[]),...list.map((p) => isAr ? p.cityAr : p.cityEn).filter(Boolean)])).slice(0, 12);
 
   return (
     <main className="container page">
@@ -30,7 +35,7 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
           <div className="hero-copy">
             <span className="pill">◆ {tr('opportunities', 'marketplace', isAr ? 'سوق الفرص الاستثمارية' : 'Investment Marketplace')}</span>
             <h1 className="lux-title">{tr('opportunities', 'title', isAr ? 'اكتشف فرصًا مختارة حسب ميزانيتك واهتمامك.' : 'Explore opportunities by budget and interest.')}</h1>
-            <p className="lux-text">{tr('opportunities', 'subtitle', isAr ? 'صفحة موحدة مع هوية إلو مستثمر: فلترة دقيقة، كروت فاخرة، درجة مشروع، مؤشرات طلب، ومعلومات تساعد المستثمر على اتخاذ القرار بسرعة.' : 'A premium opportunities page with filters, project score, demand indicators, and clear deal data.')}</p>
+            <p className="lux-text">{tr('opportunities', 'subtitle', isAr ? 'فلتر الفرص حسب الميزانية والقطاع، وقارن الأرقام واحفظ ملاحظاتك قبل التواصل.' : 'Filter by budget and sector, compare the figures and save your notes before contacting an owner.')}</p>
             <div className="hero-actions">
               <a className="btn btn-gold" href="#results">{t.explore}</a>
               <Link className="btn btn-outline" href={`/${activeCountry.code}/${lang}/add-project`}>{t.publish}</Link>
@@ -45,12 +50,13 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
           <aside className="hero-panel">
             <h3>{tr('opportunities', 'quick_search', isAr ? 'ابحث بسرعة' : 'Quick search')}</h3>
             <form className="hero-search" action={`/${activeCountry.code}/${lang}/opportunities#results`}>
+              {['city','minPrice','minRoi','verified','premium','opportunityType','sort'].map(k=>typeof rawSearch[k]==='string'?<input key={k} type="hidden" name={k} value={rawSearch[k] as string}/>:null)}
               <input name="q" type="search" defaultValue={typeof rawSearch.q === 'string' ? rawSearch.q : ''} placeholder={tr('opportunities', 'search_placeholder', isAr ? 'مثال: مقهى، تطبيق، متجر' : 'Cafe, app, store')} />
               <select name="sector" defaultValue={typeof rawSearch.sector === 'string' ? rawSearch.sector : 'all'}><option value="all">{t.allCategories}</option>{sectors.map(c => <option key={c.key} value={c.key}>{isAr ? c.nameAr : c.nameEn}</option>)}</select>
               <select name="maxPrice" defaultValue={typeof rawSearch.maxPrice === 'string' ? rawSearch.maxPrice : '0'}><option value="0">{tr('opportunities', 'all_budgets', isAr ? 'كل الميزانيات' : 'All budgets')}</option><option value="10000">{isAr ? 'أقل من 10,000 ر.ع' : 'Under 10,000'}</option><option value="50000">{isAr ? 'أقل من 50,000 ر.ع' : 'Under 50,000'}</option></select>
               <button className="btn btn-gold" type="submit">{tr('opportunities', 'show_results', isAr ? 'اعرض النتائج' : 'Show results')}</button>
             </form>
-            <div className="hero-tags"><span>{isAr ? 'موثقة' : 'Verified'}</span><span>{isAr ? 'فرص ساخنة' : 'Hot deals'}</span><span>Project Score</span><span>{activeCountry.flag}</span></div>
+            <div className="hero-tags"><span>{isAr ? 'موثقة' : 'Verified'}</span><span>{isAr ? 'فرص ساخنة' : 'Hot deals'}</span><span>{isAr?'مقارنة ومتابعة':'Compare and review'}</span><span>{activeCountry.flag}</span></div>
           </aside>
         </div>
       </section>
@@ -64,20 +70,22 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
 
       <section className="market-layout" id="results">
         <form className="filters-panel" action={`/${activeCountry.code}/${lang}/opportunities#results`}>
+          {['city','minPrice','maxPrice'].map(k=>typeof rawSearch[k]==='string'?<input key={k} type="hidden" name={k} value={rawSearch[k] as string}/>:null)}
           <input type="hidden" name="q" value={typeof rawSearch.q === 'string' ? rawSearch.q : ''} />
           <input type="hidden" name="sector" value={typeof rawSearch.sector === 'string' ? rawSearch.sector : 'all'} />
           <div className="flex items-center justify-between gap-3"><h2 className="m-0 text-[22px] font-black">{tr('opportunities', 'advanced_filters', isAr ? 'فلترة متقدمة' : 'Advanced filters')}</h2><Link className="btn btn-soft !px-3 !py-2" href={`/${activeCountry.code}/${lang}/opportunities#results`}>{tr('opportunities', 'reset', isAr ? 'مسح' : 'Reset')}</Link></div>
           <div className="filter-group"><h3>{tr('opportunities', 'deal_type', isAr ? 'نوع الفرصة' : 'Deal type')}</h3><label className="check"><input name="opportunityType" value="sale" type="radio" defaultChecked={rawSearch.opportunityType === 'sale'} /> {tr('opportunities', 'project_sale', isAr ? 'مشروع للبيع' : 'Project sale')}</label><label className="check"><input name="opportunityType" value="partnership" type="radio" defaultChecked={rawSearch.opportunityType === 'partnership'} /> {tr('opportunities', 'partnership', isAr ? 'شراكة' : 'Partnership')}</label><label className="check"><input name="opportunityType" value="idea" type="radio" defaultChecked={rawSearch.opportunityType === 'idea'} /> {tr('opportunities', 'idea', isAr ? 'فكرة استثمارية' : 'Idea')}</label></div>
-          <div className="filter-group"><h3>{tr('opportunities', 'trust_level', isAr ? 'مستوى الثقة' : 'Trust level')}</h3><label className="check"><input name="verified" value="1" type="checkbox" defaultChecked={rawSearch.verified === '1'} /> {tr('common', 'verified', isAr ? 'موثق' : 'Verified')}</label><label className="check"><input name="premium" value="1" type="checkbox" defaultChecked={rawSearch.premium === '1'} /> {isAr ? 'فرصة ساخنة' : 'Hot deal'}</label></div>
-          <div className="filter-group"><h3>Project Score</h3><label className="check"><input name="minRoi" value="20" type="radio" defaultChecked={rawSearch.minRoi === '20'} /> A+ / ROI 20%+</label><label className="check"><input name="minRoi" value="10" type="radio" defaultChecked={rawSearch.minRoi === '10'} /> A / ROI 10%+</label><label className="check"><input name="sort" value="views_desc" type="radio" defaultChecked={rawSearch.sort === 'views_desc'} /> {tr('project', 'views', isAr ? 'الأكثر مشاهدة' : 'Most viewed')}</label></div>
+          <div className="filter-group"><h3>{tr('opportunities', 'trust_level', isAr ? 'مستوى الثقة' : 'Trust level')}</h3><label className="check"><input name="verified" value="1" type="checkbox" defaultChecked={rawSearch.verified === '1'} /> {tr('common', 'verified', isAr ? 'موثق' : 'Verified')}</label><label className="check"><input name="premium" value="1" type="checkbox" defaultChecked={rawSearch.premium === '1'} /> {isAr ? 'فرصة ممولة' : 'Sponsored opportunity'}</label></div>
+          <div className="filter-group"><h3>{isAr?'العائد والترتيب':'Return and sorting'}</h3><label>{isAr?'أقل عائد سنوي %':'Minimum annual ROI %'}<input name="minRoi" type="number" min="0" step="any" defaultValue={typeof rawSearch.minRoi==='string'?rawSearch.minRoi:''}/></label><label>{isAr?'الترتيب':'Sorting'}<select name="sort" defaultValue={typeof rawSearch.sort==='string'?rawSearch.sort:'smart'}><option value="smart">{isAr?'حسب الملاءمة':'Relevance'}</option><option value="newest">{isAr?'الأحدث':'Newest'}</option><option value="views_desc">{isAr?'الأكثر مشاهدة':'Most viewed'}</option><option value="roi_desc">{isAr?'أعلى عائد':'Highest ROI'}</option><option value="price_asc">{isAr?'الأقل سعرًا':'Lowest price'}</option></select></label></div>
           <button className="btn btn-gold w-full mt-4" type="submit">{tr('opportunities', 'apply_filters', isAr ? 'تطبيق الفلترة' : 'Apply filters')}</button>
         </form>
 
         <div className="results">
           <div className="results-head"><div><h2>{tr('opportunities', 'featured_deals', isAr ? 'فرص مميزة' : 'Featured deals')}</h2><span>{isAr ? `تم العثور على ${list.length} ${tr('opportunities', 'found_suffix', 'فرصة مناسبة')}` : `${list.length} ${tr('opportunities', 'found_suffix', 'opportunities found')}`}</span></div><div className="flex gap-2"><button className="btn btn-light !px-4">▦</button><button className="btn btn-light !px-4">☰</button></div></div>
-          {list.length ? <div className="market-grid">{list.map((project) => <ProjectCard key={project.slug} project={project} lang={lang} country={activeCountry} />)}</div> : <EmptyState lang={lang} country={activeCountry.code} />}
+          {list.length ? <div className="market-grid">{pageRows.map((project) => <ProjectCard key={project.slug} project={project} lang={lang} country={activeCountry} />)}</div> : <EmptyState lang={lang} country={activeCountry.code} />}
         </div>
       </section>
+      {list.length>pageSize&&<nav aria-label={isAr?'صفحات الفرص':'Opportunity pages'} className="my-6 flex justify-center gap-5">{page>1&&<Link href={pageUrl(page-1)}>{isAr?'السابق':'Previous'}</Link>}<span>{page} / {Math.ceil(list.length/pageSize)}</span>{page<Math.ceil(list.length/pageSize)&&<Link href={pageUrl(page+1)}>{isAr?'التالي':'Next'}</Link>}</nav>}
     </main>
   );
 }

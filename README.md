@@ -1,3 +1,5 @@
+For the current native Next.js changes and activation requirements, see [README_NEXT_NATIVE_MARKETPLACE.md](README_NEXT_NATIVE_MARKETPLACE.md).
+
 # EloInvestor Next.js v1 Core Setup
 
 This is the first clean Next.js rebuild for EloInvestor.

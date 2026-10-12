@@ -1,44 +1,12 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { GitCompareArrows, Trash2 } from 'lucide-react';
-import { supabaseBrowser } from '@/lib/supabase-browser';
-
-type ProjectRow = Record<string, any>;
-
-function titleOf(row: ProjectRow, lang: string) { return lang === 'ar' ? (row.title_ar || row.title || 'مشروع') : (row.title_en || row.title || row.title_ar || 'Project'); }
-function money(n: any) { return new Intl.NumberFormat('en-US').format(Number(n || 0)); }
-
-export function CompareProjectsClient({ country, lang }: { country: string; lang: string }) {
-  const isAr = lang === 'ar';
-  const [ids, setIds] = useState<string[]>([]);
-  const [rows, setRows] = useState<ProjectRow[]>([]);
-
-  useEffect(() => {
-    let alive = true;
-    async function load() {
-      const stored = localStorage.getItem('elo-compare-projects') || '[]';
-      let list: string[] = [];
-      try {
-        list = JSON.parse(stored).filter(Boolean).slice(0, 4);
-      } catch {
-        list = [];
-      }
-      if (!alive) return;
-      setIds(list);
-      if (!list.length) {
-        setRows([]);
-        return;
-      }
-      const { data, error } = await supabaseBrowser.from('projects').select('*').in('id', list).limit(4);
-      if (alive && !error) setRows(data || []);
-    }
-    void load();
-    return () => { alive = false; };
-  }, []);
-
-  function clear() { localStorage.removeItem('elo-compare-projects'); setIds([]); setRows([]); }
-
-  return <main className="mx-auto max-w-7xl px-4 py-8" dir={isAr ? 'rtl' : 'ltr'}><section className="rounded-[2rem] bg-white p-6 shadow-sm"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700"><GitCompareArrows size={16} /> {isAr ? 'مقارنة المشاريع' : 'Project comparison'}</span><h1 className="mt-3 text-3xl font-black text-slate-950">{isAr ? 'قارن الفرص جنباً إلى جنب' : 'Compare opportunities side by side'}</h1></div><button onClick={clear} className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 font-black text-slate-700"><Trash2 size={16} /> {isAr ? 'مسح المقارنة' : 'Clear'}</button></div>{rows.length >= 2 ? <div className="mt-6 overflow-auto"><table className="w-full min-w-[760px] border-separate border-spacing-y-2 text-sm"><thead><tr className="text-slate-500"><th className="p-3 text-start">{isAr ? 'البند' : 'Field'}</th>{rows.map((row) => <th key={row.id} className="p-3 text-start">{titleOf(row, lang)}</th>)}</tr></thead><tbody>{[['السعر','price'],['العائد السنوي ROI','roi'],['المدينة','city'],['القطاع','category'],['التوثيق','is_verified'],['عدد المهتمين','contacts_count']].map(([label,key]) => <tr key={key}>{<td className="rounded-s-2xl bg-slate-50 p-3 font-black">{label}</td>}{rows.map((row) => <td key={row.id + key} className="bg-slate-50 p-3 font-bold">{key === 'price' ? `${money(row.price || row.project_price || row.asking_price)} ر.ع` : key === 'is_verified' ? (row.is_verified || row.verified ? 'موثق' : 'غير موثق') : key === 'roi' ? `${row.roi || row.profit_percentage || 0}%` : row[key] || '—'}</td>)}</tr>)}</tbody></table></div> : <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-center font-black text-slate-500">{ids.length ? (isAr ? 'اختر مشروعين على الأقل للمقارنة.' : 'Choose at least two projects to compare.') : (isAr ? 'لم تضف مشاريع للمقارنة بعد.' : 'No projects added to compare yet.')} <Link className="text-blue-700 underline" href={`/${country}/${lang}/opportunities`}>{isAr ? 'استعرض الفرص' : 'Browse opportunities'}</Link></div>}</section></main>;
+import { financialMetrics, normalizeComparisonIds } from '@/lib/marketplace-math';
+import { InvestmentCalculator } from '@/components/InvestmentCalculator';
+export function CompareProjectsClient({ country, lang }: { country:string;lang:string }) {
+ const ar=lang==='ar';const [rows,setRows]=useState<Record<string,any>[]>([]),[ids,setIds]=useState<string[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[retry,setRetry]=useState(0);
+ useEffect(()=>{let alive=true;const controller=new AbortController();async function load(){setLoading(true);setError('');try{let list:string[]=[];try{list=normalizeComparisonIds(JSON.parse(localStorage.getItem('elo-compare-projects')||'[]'));}catch{}if(!alive)return;setIds(list);if(!list.length){setRows([]);return;}const response=await fetch(`/api/projects/compare?country=${country}&ids=${list.join(',')}`,{signal:controller.signal});const data=await response.json();if(!response.ok)throw new Error(data.error);if(alive)setRows(list.flatMap(id=>(data.projects||[]).filter((r:Record<string,unknown>)=>r.id===id)));}catch(e){if(alive)setError(e instanceof Error?e.message:'Unable to load');}finally{if(alive)setLoading(false);}}void load();return()=>{alive=false;controller.abort();};},[country,retry]);
+ function remove(id?:string){const next=id?ids.filter(x=>x!==id):[];try{localStorage.setItem('elo-compare-projects',JSON.stringify(next));window.dispatchEvent(new Event('elo:compare'));setIds(next);setRows(rows.filter(r=>next.includes(r.id)));}catch{setError(ar?'تعذر تعديل المقارنة في هذا المتصفح':'Comparison storage is unavailable');}}
+ const metrics=rows.map(financialMetrics);const labels=ar?['السعر','العائد السنوي','أساس العائد','صافي الربح الشهري','المدينة','القطاع','التوثيق']:['Price','Annual return','ROI basis','Monthly net profit','City','Sector','Verification'];
+ return <main className="container page" dir={ar?'rtl':'ltr'}><section className="rounded-2xl bg-white p-5"><h1 className="text-3xl font-black">{ar?'قارن الفرص جنبًا إلى جنب':'Compare opportunities side by side'}</h1><div className="my-4 flex gap-4"><Link href={`/${country}/${lang}/opportunities`}>{ar?'استعرض الفرص':'Browse opportunities'}</Link><button onClick={()=>remove()}>{ar?'مسح المقارنة':'Clear comparison'}</button></div>{loading?<p role="status">{ar?'جاري التحميل...':'Loading...'}</p>:error?<div role="alert">{error}<button className="mx-3 underline" onClick={()=>setRetry(x=>x+1)}>{ar?'إعادة المحاولة':'Retry'}</button></div>:<>{ids.length>rows.length&&<p role="status">{ar?'بعض الفرص غير منشورة أو خارج الدولة الحالية.':'Some selections are unpublished or outside the current country.'}</p>}{rows.length<2&&<p>{ar?'اختر مشروعين على الأقل للمقارنة.':'Choose at least two opportunities.'}</p>}{rows.length>0&&<div className="overflow-auto"><table className="w-full min-w-[600px] text-sm"><caption className="my-4 text-start">{ar?'العائد المحسوب = الربح الشهري × 12 ÷ السعر. القيم المعلنة تقديرات وليست ضمانًا.':'Calculated ROI = monthly profit × 12 ÷ price. Reported values are estimates, not guarantees.'}</caption><thead><tr><th className="p-3 text-start">{ar?'البند':'Field'}</th>{rows.map(r=><th className="p-3 text-start" key={r.id}><Link href={`/${country}/${lang}/project/${r.id}`}>{ar?r.title_ar||r.title:r.title_en||r.title}</Link><button className="ms-3 text-red-700" onClick={()=>remove(r.id)} aria-label={ar?'إزالة المشروع':'Remove project'}>×</button></th>)}</tr></thead><tbody>{labels.map((label,i)=><tr key={label}><th className="p-3 text-start">{label}</th>{rows.map((r,j)=>{const m=metrics[j];const value=[m.price,m.annualRoi===null?'—':m.annualRoi.toFixed(1)+'%',m.source==='calculated'?(ar?'السعر والربح':'Price and profit'):m.source==='reported'?(ar?'بيانات المعلن':'Seller reported'):'—',m.profit,r.city,r.category,r.is_verified||r.verification_status==='approved'?(ar?'موثق':'Verified'):(ar?'غير موثق':'Unverified')][i];return <td key={r.id} className="border-t p-3">{value??'—'}</td>})}</tr>)}</tbody></table></div>}</>}</section><div className="mt-5"><InvestmentCalculator key={rows[0]?.id || 'manual'} lang={lang} price={metrics[0]?.price??0} profit={metrics[0]?.profit??0}/></div></main>;
 }

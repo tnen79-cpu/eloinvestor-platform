@@ -1,30 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, insertWithFallback, jsonError } from '../_shared';
-
-export const dynamic = 'force-dynamic';
-
-export async function POST(req: NextRequest) {
-  try {
-    const { user, db } = await getUser(req);
-    const body = await req.json();
-    const requestType = body.requestType || body.request_type || body.type || 'investor';
-    const row = {
-      user_auth_id: user.id,
-      request_type: requestType,
-      type: requestType,
-      project_id: requestType === 'project' ? (body.projectId || body.project_id || null) : null,
-      project_title: body.projectTitle || body.project_title || '',
-      status: 'pending',
-      document_url: body.documentUrl || body.document_url || body.file_url || '',
-      document_type: body.documentType || body.document_type || '',
-      note: body.note || '',
-      notes: body.note || body.notes || '',
-      country_code: String(body.country || body.country_code || 'om').toLowerCase(),
-      created_at: new Date().toISOString(),
-    };
-    const result = await insertWithFallback(db, 'verification_requests', row, { status: 'pending', request_type: requestType, type: requestType });
-    return NextResponse.json({ ok: true, verification: result.data, removed_columns: result.removed });
-  } catch (error: any) {
-    return jsonError(error?.message || 'تعذر إرسال طلب التوثيق.', error?.status || 500);
-  }
-}
+import { createClient } from '@supabase/supabase-js';
+import { getUser, jsonError } from '../_shared';
+export const dynamic='force-dynamic';
+export async function POST(req:NextRequest){try{
+ const {token}=await getUser(req);const body=await req.json();
+ if(!/^[0-9a-f-]{36}$/i.test(body.requestKey||'')||!['project','investor'].includes(body.requestType)||typeof body.documentPath!=='string'||typeof body.note!=='string'||body.note.length>2000)return jsonError('طلب التوثيق غير صالح.',400);
+ const db=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:`Bearer ${token}`}}});
+ const r=await db.rpc('next_submit_verification',{request_key:body.requestKey,request_kind:body.requestType,project_key:body.projectId||null,document_path:body.documentPath,document_mime:body.documentType,note_text:body.note,country:body.country,replacement_key:body.replacementId||null});if(r.error||!r.data)return jsonError(r.error?.message||'تعذر تقديم التوثيق.',409);return NextResponse.json({ok:true,verification:{id:r.data}});
+}catch(e){return jsonError((e as any)?.message||'تعذر إرسال طلب التوثيق.',(e as any)?.status||500);}}

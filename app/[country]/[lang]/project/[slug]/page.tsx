@@ -19,6 +19,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
+import { InvestmentCalculator } from '@/components/InvestmentCalculator';
 import { CompareProjectButton } from '@/components/CompareProjectButton';
 import { NdaAcceptanceGate } from '@/components/NdaAcceptanceGate';
 import { ProjectDetailsTabs } from '@/components/ProjectDetailsTabs';
@@ -138,7 +139,7 @@ export default async function ProjectDetailsPage({
   const ownerDisplayName = ownerProfile?.name || p.ownerName || (isAr ? 'صاحب المشروع' : 'Project owner');
   const ownerProfileId = ownerProfile?.slug || ownerProfile?.authId || ownerProfile?.id || p.ownerId || '';
   const ownerProfileHref = ownerProfileId ? `/${activeCountry.code}/${lang}/profile/${encodeURIComponent(ownerProfileId)}` : '';
-  const ownerVerified = ownerProfile?.verificationStatus === 'approved' || (ownerProfile?.trustScore || 0) >= 70 || p.verified;
+  const ownerVerified = ownerProfile?.verificationStatus === 'approved';
   const ownerRating = Number(ownerProfile?.averageRating || 0);
   const ownerRatingsCount = Number(ownerProfile?.ratingsCount || 0);
 
@@ -233,6 +234,7 @@ export default async function ProjectDetailsPage({
             <MetricBox icon={BriefcaseBusiness} label={isAr ? 'نوع المشروع' : 'Project type'} value={opportunity.label} />
           </section>
 
+          <InvestmentCalculator lang={lang} price={p.price} profit={p.monthlyProfit} />
           <ProjectDetailsTabs
             lang={lang}
             summary={summary}

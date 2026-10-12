@@ -1,3 +1,4 @@
+import { financialMetrics } from './marketplace-math';
 import { supabase } from './supabase';
 
 const isProductionBuild = process.env.NEXT_PHASE === 'phase-production-build';
@@ -86,6 +87,7 @@ export type UiProject = {
   price: number;
   roi: number;
   monthlyProfit: number;
+  roiSource?: string;
   category: string;
   opportunityType?: string;
   verified: boolean;
@@ -198,7 +200,8 @@ function mapProject(row: Record<string, any>, images: string[] = []): UiProject 
     governorateAr: governorate,
     governorateEn: pickString(row, ['governorate_en', 'region_en'], governorate),
     price: pickNumber(row, ['price', 'project_price', 'asking_price', 'sale_price', 'investment_amount'], 0),
-    roi: pickNumber(row, ['roi', 'profit_percentage', 'expected_profit_percentage', 'expected_profit_percent', 'return_percentage'], 0),
+    roi: financialMetrics(row).annualRoi ?? 0,
+    roiSource: financialMetrics(row).source,
     monthlyProfit: pickNumber(row, ['monthly_profit', 'expected_monthly_profit', 'profit_monthly'], 0),
     category: pickString(row, ['category', 'sector', 'scope'], 'services'),
     opportunityType: pickString(row, ['opportunity_type', 'type'], ''),
@@ -348,22 +351,27 @@ export async function getCountryByCode(code: string): Promise<DbCountry> {
   return list.find((country) => country.code === normalizeCode(code)) || list.find((country) => country.isDefault) || list[0];
 }
 
-export async function getProjects(countryCode?: string, includeHidden = false, limit = 120): Promise<UiProject[]> {
+export async function getProjects(countryCode?: string, includeHidden = false, limit = 120, throwOnError = false): Promise<UiProject[]> {
   if (isPlaceholderSupabase) return [] as any;
   const country = countryCode ? normalizeCode(countryCode) : undefined;
   try {
-    let query = supabase.from('projects').select('*').order('created_at', { ascending: false }).limit(limit);
-    if (country) query = query.eq('country_code', country);
-    if (!includeHidden) query = query.in('status', ['approved', 'active', 'published']).neq('status', 'rejected');
-    const { data, error } = await query;
-    if (error) throw error;
-
-    const rows = data || [];
+    const rows: any[] = [];
+    for (let offset = 0; offset < limit; offset += 500) {
+      let query = supabase.from('projects').select('*').order('created_at', { ascending: false }).order('id').range(offset, Math.min(offset + 499, limit - 1));
+      if (country) query = query.eq('country_code', country);
+      if (!includeHidden) query = query.in('status', ['approved', 'active', 'published']);
+      const { data, error } = await query;
+      if (error) throw error;
+      rows.push(...(data || []));
+      if (!data || data.length < Math.min(500, limit-offset)) break;
+    }
+    if (throwOnError && rows.length === limit) throw new Error('عدد الفرص يتجاوز حد البحث الحالي. يلزم تفعيل الفلترة في قاعدة البيانات.');
     const imageMap = await getProjectImages(rows.map((row: any) => String(row.id || '')).filter(Boolean));
     const mapped = rows.map((row: any) => mapProject(row, imageMap.get(String(row.id)) || [])).filter((project) => includeHidden || ['approved', 'active', 'published'].includes(String(project.status || '').toLowerCase()));
     if (mapped.length) return mapped;
   } catch (error) {
-    console.warn('Falling back to local projects:', error);
+    if (throwOnError) throw error;
+    console.warn('Projects unavailable:', error);
   }
 
   // Production-safe: do not show demo/fallback opportunities in the public UI.
@@ -373,7 +381,7 @@ export async function getProjects(countryCode?: string, includeHidden = false, l
 
 export async function getProjectsAdvanced(countryCode: string | undefined, rawParams: Record<string, string | string[] | undefined>, signals: InvestorSignals = {}) {
   const filters = parseSearchParams(rawParams);
-  const list = await getProjects(countryCode, false, 180);
+  const list = await getProjects(countryCode, false, 5000, true);
   return sortProjects(filterProjects(list, filters), filters.sort || 'smart', signals);
 }
 

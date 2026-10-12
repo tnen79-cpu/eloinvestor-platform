@@ -33,7 +33,11 @@ import {
   LogOut,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
+import { VerificationCenter } from '@/components/VerificationCenter';
 import { AddProjectForm } from '@/components/AddProjectForm';
+import { MessagesCenter } from '@/components/MessagesCenter';
+import { LeadWorkspace } from '@/components/LeadWorkspace';
+import { InvestorWorkspace } from '@/components/InvestorWorkspace';
 import { SavedSearchesPanel } from '@/components/SavedSearchesPanel';
 import { accountTypeLabel, canAddProjects, canInvest, isAdminRole } from '@/lib/account';
 import { getCategoryLabel } from '@/lib/data';
@@ -724,15 +728,15 @@ export function UserDashboardGate({ country, lang }: { country: string; lang: st
           {active === 'overview' && <OverviewPanel owner={owner} investor={investor} stats={stats} promotionStats={promotionStats} projects={projects} saved={saved} contacted={contacted} activity={activity} country={country} lang={lang} setActive={openTab} onEdit={editProject} />}
           {active === 'my-projects' && owner && <ProjectsPanel projects={filteredProjects} query={query} setQuery={setQuery} country={country} lang={lang} onEdit={editProject} />}
           {active === 'add-project' && owner && <AddProjectForm country={country} lang={lang} editProjectId={editingProjectId} onSaved={refreshDashboard} />}
-          {active === 'requests' && owner && <ActivityPanel title="طلبات المستثمرين" items={activity.filter((i) => i.title.includes('تواصل') || i.subtitle.includes('contact'))} empty="لا توجد طلبات مستثمرين بعد." />}
+          {active === 'requests' && owner && <LeadWorkspace owner country={country} lang={lang} />}
           {active === 'promotion' && owner && <OwnerPromotionPanel requests={promotionRequests} stats={promotionStats} projects={projects} country={country} lang={lang} />}
           {active === 'packages' && (owner || investor) && <PackagesPanel currentPlan={profile.plan} remaining={profile.remainingProjects} profile={profile} owner={owner} investor={investor} />}
           {active === 'investor-center' && investor && <InvestorPanel saved={saved} contacted={contacted} country={country} lang={lang} />}
-          {active === 'saved' && investor && <MiniProjects title="المحفوظات" items={saved} country={country} lang={lang} empty="لم تحفظ فرصًا بعد." />}
+          {active === 'saved' && investor && <InvestorWorkspace country={country} lang={lang} />}
           {active === 'suggested' && investor && <SuggestedPanel projects={suggested} profile={profile} country={country} lang={lang} setActive={openTab} />}
           {active === 'interests' && investor && <InterestsPanel profile={profile} lang={lang} onSaved={(next) => { setProfile(next); void loadSuggestedProjects(next).then(setSuggested); }} />}
-          {active === 'messages' && <MessagesPanel contacted={contacted} country={country} lang={lang} profile={profile} />}
-          {active === 'verification' && <VerificationPanel profile={profile} owner={owner} investor={investor} onActivity={async () => setActivity(await loadActivity(profile.id))} />}
+          {active === 'messages' && <MessagesCenter country={country} lang={lang} />}
+          {active === 'verification' && <VerificationCenter country={country} lang={lang} />}
           {active === 'notifications' && <ActivityPanel title="الإشعارات" items={activity.filter((i) => i.id.startsWith('n-'))} empty="لا توجد إشعارات جديدة." />}
           {active === 'activity' && <ActivityPanel title="سجل النشاط" items={activity} empty="لا يوجد نشاط مسجل بعد." />}
           {active === 'profile' && <ProfilePanel profile={profile} country={country} lang={lang} onSaved={setProfile} projects={projects} saved={saved} contacted={contacted} stats={stats} />}
@@ -1149,55 +1153,6 @@ function MessagesPanel({ contacted, country, lang, profile }: { contacted: MiniP
   return <div className="clean-card"><CardTitle title={isAr ? 'الشات الداخلي' : 'Internal chat'} subtitle={isAr ? 'رسائل حقيقية مرتبطة بقاعدة البيانات والتحديث المباشر.' : 'Real database-backed messages with realtime updates.'} />
     <div className="clean-chat-shell"><aside>{contacted.length ? contacted.map((item) => <button key={item.id} onClick={() => setSelected(item)} className={selected?.id === item.id ? 'active' : ''}><img src={item.image} alt="" /><span><b>{item.title}</b><small>{item.city || (isAr ? 'فرصة استثمارية' : 'Investment opportunity')}</small></span></button>) : <Empty title={isAr ? 'لا توجد محادثات بعد.' : 'No conversations yet.'} />}</aside>
       <section>{selected ? <><div className="chat-head"><b>{selected.title}</b><Link href={`/${country}/${lang}/project/${encodeURIComponent(selected.projectId || selected.slug)}`}>{isAr ? 'فتح المشروع' : 'Open project'}</Link></div><div className="chat-body">{messages.length ? messages.map((item) => <p key={item.id} className={`bubble ${item.senderId === profile.id ? 'outgoing' : 'incoming'}`}>{item.body}<small>{formatDate(item.createdAt, lang)}</small></p>) : <p className="bubble incoming">{isAr ? 'ابدأ المحادثة حول هذه الفرصة من هنا.' : 'Start the conversation about this opportunity here.'}</p>}</div>{message && <p className="clean-save-message">{message}</p>}<div className="chat-compose"><input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void sendMessage(); }} placeholder={isAr ? 'اكتب رسالة...' : 'Write a message...'} /><button type="button" onClick={sendMessage} disabled={sending || !selected.conversationId}>{sending ? '...' : (isAr ? 'إرسال' : 'Send')}</button></div></> : <Empty title={isAr ? 'اختر محادثة لعرض التفاصيل.' : 'Choose a conversation.'} />}</section></div>
-  </div>;
-}
-
-function VerificationPanel({ profile, owner, investor, onActivity }: { profile: Profile; owner: boolean; investor: boolean; onActivity: () => void }) {
-  const [files, setFiles] = useState<Record<string, File | null>>({});
-  const [sending, setSending] = useState('');
-  const [message, setMessage] = useState('');
-
-  async function uploadVerificationFile(file: File, type: 'investor' | 'project') {
-    const bucket = process.env.NEXT_PUBLIC_VERIFICATION_BUCKET || 'verification-docs';
-    const ext = file.name.split('.').pop() || 'pdf';
-    const safeName = `${type}-${Date.now()}.${ext}`.replace(/[^a-zA-Z0-9.-]/g, '');
-    const path = `${profile.id}/${safeName}`;
-    const { error } = await supabaseBrowser.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: false });
-    if (error) throw new Error(`فشل رفع الملف: ${error.message}`);
-    const { data } = supabaseBrowser.storage.from(bucket).getPublicUrl(path);
-    return { path, publicUrl: data.publicUrl };
-  }
-
-  async function submitVerification(type: 'investor' | 'project') {
-    setSending(type);
-    setMessage('');
-    try {
-      const file = files[type];
-      if (!file) throw new Error(type === 'investor' ? 'اختر ملف الهوية أو كشف الحساب أولًا.' : 'اختر ملف السجل التجاري أو أوراق المشروع أولًا.');
-      const uploaded = await uploadVerificationFile(file, type);
-      await insertRowWithFallback('verification_requests', {
-        user_auth_id: profile.id,
-        request_type: type,
-        status: 'pending',
-        title: type === 'investor' ? 'توثيق مستثمر' : 'توثيق مشروع',
-        document_name: file.name,
-        document_url: uploaded.publicUrl,
-        file_url: uploaded.publicUrl,
-        file_path: uploaded.path,
-        storage_path: uploaded.path,
-        note: 'طلب توثيق من لوحة المستخدم',
-      });
-      setFiles((prev) => ({ ...prev, [type]: null }));
-      setMessage(type === 'investor' ? 'تم رفع الملف وإرسال طلب توثيق المستثمر.' : 'تم رفع الملف وإرسال طلب توثيق المشروع.');
-      await onActivity();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'تعذر إرسال طلب التوثيق.');
-    } finally {
-      setSending('');
-    }
-  }
-  return <div className="clean-card"><CardTitle title="التوثيق" subtitle="ارفع مستنداتك للحصول على شارة موثق وزيادة الثقة." />
-    <div className="clean-verify-grid"><article><ShieldCheck size={28} /><b>حالة الحساب</b><strong>{profile.verificationStatus === 'approved' ? 'موثق' : 'غير موثق'}</strong><p>التوثيق يزيد ثقة المستثمرين وأصحاب المشاريع.</p></article>{investor && <article><UserCircle size={28} /><b>توثيق مستثمر</b><p>ارفع الهوية وكشف حساب بنكي قوي للمراجعة.</p><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setFiles((p) => ({ ...p, investor: e.target.files?.[0] || null }))} />{files.investor && <small>{files.investor.name}</small>}<button type="button" onClick={() => submitVerification('investor')} disabled={sending === 'investor'}>{sending === 'investor' ? 'جاري الرفع...' : 'إرسال طلب توثيق مستثمر'}</button></article>}{owner && (isPaidPlan(profile.plan) ? <article><FileCheck2 size={28} /><b>توثيق مشروع</b><p>متاح ضمن باقتك المدفوعة. ارفع سجل تجاري أو أوراق المشروع للمراجعة.</p><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setFiles((p) => ({ ...p, project: e.target.files?.[0] || null }))} />{files.project && <small>{files.project.name}</small>}<button type="button" onClick={() => submitVerification('project')} disabled={sending === 'project'}>{sending === 'project' ? 'جاري الرفع...' : 'إرسال طلب توثيق مشروع'}</button></article> : <article className="locked-verify"><LockKeyhole size={28} /><b>توثيق المشاريع مدفوع</b><p>ترقية باقة صاحب المشروع مطلوبة لطلب شارة مشروع موثق.</p><button type="button" onClick={() => setMessage('افتح تبويب الباقات واختر باقة Growth أو Business لتفعيل توثيق المشاريع.')}>معرفة طريقة التفعيل</button></article>)}</div>{message && <p className="clean-save-message">{message}</p>}
   </div>;
 }
 

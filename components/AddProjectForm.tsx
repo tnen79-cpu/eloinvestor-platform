@@ -1,4 +1,5 @@
 'use client';
+import { submitVerificationDocument } from '@/lib/verification-client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -283,16 +284,7 @@ async function insertRowWithFallback(table: string, payload: Record<string, unkn
   throw new Error('تعذر حفظ الطلب بسبب توافق أعمدة قاعدة البيانات.');
 }
 
-async function uploadVerificationDocument(file: File, userId: string, projectId: string) {
-  const bucket = process.env.NEXT_PUBLIC_VERIFICATION_BUCKET || 'verification-docs';
-  const ext = file.name.split('.').pop() || 'pdf';
-  const safeName = `project-${projectId}-${Date.now()}.${ext}`.replace(/[^a-zA-Z0-9.-]/g, '');
-  const path = `${userId}/${safeName}`;
-  const { error } = await supabaseBrowser.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: false });
-  if (error) throw new Error(`فشل رفع ملف التوثيق: ${error.message}`);
-  const { data } = supabaseBrowser.storage.from(bucket).getPublicUrl(path);
-  return { path, publicUrl: data.publicUrl };
-}
+
 
 async function insertProjectWithFallback(payload: Record<string, unknown>, userId?: string) {
   const current = { ...payload };
@@ -912,8 +904,7 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
       const existingCover = images.find((item) => item.isCover && item.existing)?.url || '';
       const cover = uploaded.find((item) => item.isCover)?.url || uploaded[0]?.url || existingCover || images[0]?.url || '';
       const slug = isEditing ? undefined : `${slugify(form.title)}-${Date.now().toString(36)}`;
-      const publishMode = await getProjectPublishMode();
-      const nextProjectStatus = publishMode === 'auto' ? 'approved' : 'pending';
+      let nextProjectStatus = 'pending';
 
       const payload: Record<string, unknown> = {
         title: form.title.trim(),
@@ -974,8 +965,10 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
         created_by: userData.user.id,
       };
 
-      const { data } = await saveProjectViaApi(payload, isEditing ? editProjectId : undefined);
+      const { data } = await saveProjectViaApi(payload, isEditing ? editProjectId : createdProjectId || undefined);
+      nextProjectStatus = String((data as any)?.status || 'pending');
       const projectId = String((data as { id?: string } | null)?.id || editProjectId || '');
+      if (!isEditing && projectId) setCreatedProjectId(projectId);
       if (projectId && removedImageIds.length) await supabaseBrowser.from('project_images').delete().in('id', removedImageIds);
       if (projectId && removedDocumentIds.length) await supabaseBrowser.from('project_documents').delete().in('id', removedDocumentIds);
       if (projectId && removedVideoIds.length) await supabaseBrowser.from('project_videos').delete().in('id', removedVideoIds);
@@ -986,27 +979,8 @@ export function AddProjectForm({ country, lang, editProjectId: editProjectIdProp
         if (uploadedVideos.length) await insertProjectVideos(projectId, uploadedVideos);
       }
 
-      if (projectId && (verificationRequested || verificationFile || projectDocuments.length)) {
-        const verification = verificationFile
-          ? await uploadVerificationDocument(verificationFile, userData.user.id, projectId)
-          : null;
-        await insertRowWithFallback('verification_requests', {
-          user_auth_id: userData.user.id,
-          project_id: projectId,
-          request_type: 'project',
-          type: 'project',
-          status: 'pending',
-          title: 'توثيق مشروع من صفحة إضافة المشروع',
-          project_title: form.title.trim(),
-          document_name: verificationFile?.name || (projectDocuments.length ? 'مستندات المشروع' : 'طلب توثيق'),
-          document_url: verification?.publicUrl || '',
-          file_url: verification?.publicUrl || '',
-          file_path: verification?.path || '',
-          storage_path: verification?.path || '',
-          note: projectDocuments.length
-            ? 'طلب توثيق مرفق مع مستندات المشروع في جدول project_documents.'
-            : 'طلب توثيق مشروع من السمارت فورم.',
-        });
+      if (projectId && verificationFile) {
+        await submitVerificationDocument(verificationFile,'project',projectId,'مستند مقدم مع المشروع',normalizedCountry);
       }
 
       setSuccess(isEditing ? (t('add_project', 'update_success', isAr ? (nextProjectStatus === 'approved' ? 'تم تحديث المشروع ونشره بنجاح.' : 'تم تحديث المشروع بنجاح وإرساله للمراجعة.') : (nextProjectStatus === 'approved' ? 'Project updated and published.' : 'Project updated and sent for review.'))) : (t('add_project', 'submit_success', isAr ? (nextProjectStatus === 'approved' ? 'تم نشر المشروع بنجاح.' : 'تم إرسال المشروع للمراجعة بنجاح.') : (nextProjectStatus === 'approved' ? 'Project published successfully.' : 'Project submitted for review successfully.'))));

@@ -13,7 +13,7 @@ async function requireAdmin(request: NextRequest) {
     .select('id,auth_id,email,role,admin_role,is_admin,admin_status,admin_permissions')
     .or(`auth_id.eq.${user.id},id.eq.${user.id},email.eq.${user.email}`)
     .maybeSingle();
-  const role = String((profile as any)?.admin_role || (profile as any)?.role || user.user_metadata?.admin_role || user.user_metadata?.role || '').toLowerCase();
+  const role = String((profile as any)?.admin_role || (profile as any)?.role || '').toLowerCase();
   const status = String((profile as any)?.admin_status || 'active').toLowerCase();
   const allowed = ((profile as any)?.is_admin === true || ['admin', 'super_admin', 'finance_admin'].includes(role)) && !['suspended', 'revoked', 'inactive'].includes(status);
   if (!allowed) throw new Error('FORBIDDEN');

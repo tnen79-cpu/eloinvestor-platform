@@ -1,3 +1,4 @@
+import { sanitizeProjectInput, projectOwnership } from '@/lib/project-input';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -75,7 +76,8 @@ function fillRequiredProjectColumn(current: AnyRecord, column: string, userId: s
 }
 
 function normalizePayload(payload: AnyRecord, userId: string) {
-  const current = { ...payload };
+  const current = sanitizeProjectInput(payload);
+  for(const key of ['status','moderation_status','publish_status','approval_status','is_active','is_verified','verified','verification_status'])current[key]=payload[key];
   const title = String(current.title || current.name || current.title_ar || '').trim() || 'مشروع جديد';
   const description = String(current.description || current.description_ar || '').trim() || 'تفاصيل المشروع متاحة عند التواصل مع صاحب المشروع.';
   return {
@@ -107,17 +109,17 @@ function normalizePayload(payload: AnyRecord, userId: string) {
   };
 }
 
-async function saveWithFallback(db: any, payload: AnyRecord, userId: string, projectId?: string) {
+async function saveWithFallback(db: any, payload: AnyRecord, userId: string, projectId?: string, ownerColumn?: string) {
   const current: AnyRecord = normalizePayload(payload, userId);
   const removed: string[] = [];
 
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const query = projectId
-      ? db.from('projects').update(current).eq('id', projectId).select('id').maybeSingle()
-      : db.from('projects').insert(current).select('id').maybeSingle();
+      ? db.from('projects').update(current).eq('id', projectId).eq(ownerColumn!,userId).select('id,status').maybeSingle()
+      : db.from('projects').insert(current).select('id,status').maybeSingle();
 
     const { data, error } = await query;
-    if (!error) return { data, removed };
+    if (!error) { if(!data)throw new Error('المشروع تغيّر أو لم يتم حفظه. أعد تحميله.'); return { data, removed }; }
 
     const message = [error.message, error.details, error.hint, error.code].filter(Boolean).join(' ');
     const missing = getMissingColumn(message);
@@ -157,7 +159,14 @@ export async function POST(req: NextRequest) {
       global: serviceRoleKey ? undefined : { headers: { Authorization: `Bearer ${token}` } },
     });
 
-    const result = await saveWithFallback(db, payload, userData.user.id, projectId);
+    // Only the existing owner can edit; the service key must never bypass this check.
+    let ownerColumn: string | null = null;
+    if(projectId){const existing=await db.from('projects').select('*').eq('id',projectId).maybeSingle();if(existing.error)return jsonError('تعذر التحقق من المشروع.',503);ownerColumn=existing.data?projectOwnership(existing.data,userData.user.id):null;if(!ownerColumn)return jsonError('لا تملك صلاحية تعديل هذا المشروع.',403);}
+    let publish='pending';
+    if(!projectId){const setting=await db.from('platform_settings').select('value').eq('key','project_publish_mode').maybeSingle();if(!setting.error){try{const value=typeof setting.data?.value==='string'?JSON.parse(setting.data.value):setting.data?.value;if(value?.mode==='auto')publish='approved';}catch{}}}
+    const safe=sanitizeProjectInput(payload);
+    Object.assign(safe,{status:publish,moderation_status:publish,publish_status:publish,approval_status:publish==='approved'?'auto_approved':'pending',is_active:publish==='approved',is_verified:false,verified:false,verification_status:'pending'});
+    const result = await saveWithFallback(db, safe, userData.user.id, projectId, ownerColumn||undefined);
     return NextResponse.json({ ok: true, project: result.data, removed_columns: result.removed });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'حدث خطأ أثناء حفظ المشروع.';

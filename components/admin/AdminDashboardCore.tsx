@@ -44,6 +44,8 @@ import {
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { AnalyticsBars } from '@/components/AnalyticsBars';
+import { reviewVerificationRequest } from '@/lib/verification-client';
+import { PrivateDocumentButton } from '@/components/PrivateDocumentButton';
 import { isAdminRole } from '@/lib/account';
 import { flattenDefaultTranslations } from '@/lib/i18n';
 
@@ -245,6 +247,8 @@ type UpgradeRequest = {
 };
 
 type VerificationRow = {
+  review_revision: number;
+  is_current: boolean;
   id: string;
   user_auth_id: string;
   request_type?: string | null;
@@ -670,7 +674,7 @@ export default function AdminDashboard() {
       if (!directProfile.error) profile = directProfile.data;
     }
 
-    const role = String(profile?.admin_role || profile?.role || user.user_metadata?.admin_role || user.user_metadata?.role || '').toLowerCase();
+    const role = String(profile?.admin_role || profile?.role || '').toLowerCase();
     const status = String(profile?.admin_status || 'active').toLowerCase();
     const allowed = (profile?.is_admin === true || isAdminRole(role)) && status !== 'suspended' && status !== 'revoked';
     if (!allowed) {
@@ -816,7 +820,7 @@ export default function AdminDashboard() {
       supabaseBrowser.from('platform_settings').select('value').eq('key', 'project_publish_mode').maybeSingle(),
       supabaseBrowser.rpc('admin_list_users', { search_text: null, result_limit: 500 }),
       supabaseBrowser.from('subscription_packages').select('*').order('sort_order', { ascending: true }),
-      supabaseBrowser.from('verification_requests').select('*').order('created_at', { ascending: false }).limit(300),
+      supabaseBrowser.from('verification_requests').select('*').eq('is_current',true).order('created_at', { ascending: false }).limit(300),
       supabaseBrowser.from('subscription_requests').select('*').order('created_at', { ascending: false }).limit(300),
       supabaseBrowser.from('notifications').select('*').order('created_at', { ascending: false }).limit(150),
       supabaseBrowser.from('admin_invites').select('*').order('created_at', { ascending: false }).limit(200),
@@ -1098,6 +1102,7 @@ export default function AdminDashboard() {
   async function updateProject(id: string, patch: Record<string, any>) {
     setSaving(true);
     setNotice(null);
+    if (['is_verified','verified','verification_status'].some(key=>key in patch)) { setSaving(false);setNotice({type:'error',text:'التوثيق يتم من مراجعة المستندات الحالية في تبويب التوثيق.'});return; }
     const safePatch = { ...patch };
     if (String(safePatch.status || '').toLowerCase() === 'rejected') safePatch.is_active = false;
     if (['approved', 'active', 'published'].includes(String(safePatch.status || '').toLowerCase())) safePatch.is_active = true;
@@ -1131,16 +1136,8 @@ export default function AdminDashboard() {
     const email = String(user.email || '');
     if (!id && !email) return;
     setSaving(true);
-    const rpc = await supabaseBrowser.rpc('admin_update_user', {
-      target_auth_id: id || null,
-      target_email: email || null,
-      patch,
-    });
-    let error: any = rpc.error;
-    if (error) {
-      const direct = await supabaseBrowser.from('users').update(patch).or(`auth_id.eq.${id},id.eq.${id},email.eq.${email}`);
-      error = direct.error;
-    }
+    const rpc = await supabaseBrowser.rpc('next_admin_update_user',{target_key:id,changes:patch});
+    const error = rpc.error || (rpc.data!==true ? {message:'لم يتم حفظ تعديل الحساب'} : null);
     setSaving(false);
     if (error) setNotice({ type: 'error', text: error.message });
     else {
@@ -1199,20 +1196,10 @@ export default function AdminDashboard() {
   }
 
   async function updateVerification(item: VerificationRow, nextStatus: string, note = '') {
-    setSaving(true);
-    const { error } = await supabaseBrowser.from('verification_requests').update({ status: nextStatus, admin_note: note, reviewed_at: new Date().toISOString() }).eq('id', item.id);
-    if (!error && nextStatus === 'approved') {
-      if ((item.request_type || item.type) === 'project' && item.project_id) await supabaseBrowser.from('projects').update({ is_verified: true, verification_status: 'approved' }).eq('id', item.project_id);
-      if ((item.request_type || item.type) === 'investor' && item.user_auth_id) await supabaseBrowser.from('users').update({ is_verified: true, verification_status: 'approved' }).or(`auth_id.eq.${item.user_auth_id},id.eq.${item.user_auth_id}`);
-    }
-    setSaving(false);
-    if (error) setNotice({ type: 'error', text: error.message });
-    else {
-      await logAction('review_verification', 'verification_request', item.id, { status: nextStatus, admin_note: note });
-      await notifyUser(item.user_auth_id, nextStatus === 'approved' ? 'تم قبول طلب التوثيق' : nextStatus === 'rejected' ? 'تم رفض طلب التوثيق' : 'طلب التوثيق يحتاج تعديل', note || 'راجع حالة طلب التوثيق من لوحة التحكم.', 'verification');
-      setNotice({ type: 'success', text: 'تم تحديث طلب التوثيق.' });
-      await loadAll();
-    }
+    if(saving)return;setSaving(true);setNotice(null);
+    try { const state=await reviewVerificationRequest(item.id,item.review_revision,nextStatus,note); await loadAll();setNotice({type:'success',text:'تم حفظ القرار. حالة التوثيق الإجمالية: '+state}); }
+    catch(e) { setNotice({type:'error',text:(e as any)?.message||'تعذر حفظ القرار'}); }
+    finally {setSaving(false);}
   }
 
   function reviewVerification(item: VerificationRow, nextStatus: string) {
@@ -1223,7 +1210,7 @@ export default function AdminDashboard() {
     setSaving(true);
     const { error } = await supabaseBrowser.from('subscription_requests').update({ status: nextStatus, admin_note: note, reviewed_at: new Date().toISOString() }).eq('id', item.id);
     if (!error && nextStatus === 'approved') {
-      await supabaseBrowser.from('users').update({ subscription_status: item.package_code || 'pro', plan: item.package_code || 'pro', package_type: item.package_type || 'investor' }).or(`auth_id.eq.${item.user_auth_id},id.eq.${item.user_auth_id}`);
+      const billing=await supabaseBrowser.rpc('next_admin_update_user',{target_key:String(item.user_auth_id),changes:{subscription_status:item.package_code||'pro',plan:item.package_code||'pro',package_type:item.package_type||'investor'}});if(billing.error) {setNotice({type:'error',text:billing.error.message});setSaving(false);return;}
     }
     setSaving(false);
     if (error) setNotice({ type: 'error', text: error.message });
@@ -1311,7 +1298,7 @@ export default function AdminDashboard() {
     let error: any = null;
     if (existing) {
       const id = String(existing.auth_id || existing.id || '');
-      const result = await supabaseBrowser.from('users').update(payload).or(`auth_id.eq.${id},id.eq.${id},email.eq.${email}`);
+      const result = await supabaseBrowser.rpc('next_admin_update_user',{target_key:id,changes:payload});
       error = result.error;
     } else {
       const invitePayload = { email, name: payload.name, role: payload.role, permissions: payload.admin_permissions, status: 'invited', invited_by: admin?.id || null };
@@ -1421,7 +1408,7 @@ export default function AdminDashboard() {
       role: user.role || 'user',
       subscription_status: user.subscription_status || user.plan || 'free',
       is_blocked: user.is_blocked === true,
-      is_verified: user.is_verified === true,
+
     }});
   }
 
@@ -1502,8 +1489,8 @@ export default function AdminDashboard() {
       cover_image: projectEditModal.form.cover_image_url,
       status: projectEditModal.form.status,
       moderation_status: projectEditModal.form.moderation_status || projectEditModal.form.status,
-      is_verified: projectEditModal.form.is_verified === true,
-      verification_status: projectEditModal.form.verification_status || (projectEditModal.form.is_verified ? 'approved' : 'none'),
+
+
     };
     const { error } = await supabaseBrowser.from('projects').update(payload).eq('id', projectEditModal.project.id);
     setSaving(false);
@@ -1939,7 +1926,7 @@ export default function AdminDashboard() {
                 <option value="all">كل طلبات التوثيق</option><option value="pending">قيد المراجعة</option><option value="approved">مقبول</option><option value="revision">يحتاج تعديل</option><option value="rejected">مرفوض</option>
               </select>
             </div>
-            {filteredVerifications.length ? filteredVerifications.map((item) => { const meta = statusMeta(item.status); return <article key={item.id} className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"><div><span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ring-1 ${meta.cls}`}><meta.icon className="h-4 w-4" /> {meta.label}</span><h3 className="mt-3 text-xl font-black">{(item.request_type || item.type) === 'project' ? 'توثيق مشروع' : 'توثيق مستخدم'} {item.project_title ? `— ${item.project_title}` : ''}</h3><p className="mt-2 text-xs font-bold text-slate-500">المستخدم: {userByAuth.get(String(item.user_auth_id))?.name || userByAuth.get(String(item.user_auth_id))?.full_name || userByAuth.get(String(item.user_auth_id))?.email || item.user_auth_id} · المشروع: {item.project_id ? (projectById.get(String(item.project_id))?.title || item.project_title || item.project_id) : '—'}</p>{item.admin_note ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-700">{item.admin_note}</p> : null}</div><div className="flex flex-wrap gap-2">{item.project_id ? <Link target="_blank" href={`/${projectById.get(String(item.project_id))?.countryCode || 'om'}/ar/project/${encodeURIComponent(projectById.get(String(item.project_id))?.slug || String(item.project_id))}?adminPreview=1`} className="rounded-full bg-blue-50 px-4 py-3 text-sm font-black text-blue-700">معاينة المشروع</Link> : null}{item.document_url ? <a href={item.document_url} target="_blank" rel="noreferrer" className="rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">فتح الملف</a> : null}<button onClick={() => reviewVerification(item, 'approved')} className="rounded-full bg-blue-600 px-4 py-3 text-sm font-black text-white">قبول</button><button onClick={() => reviewVerification(item, 'revision')} className="rounded-full bg-amber-100 px-4 py-3 text-sm font-black text-amber-800">طلب تعديل</button><button onClick={() => reviewVerification(item, 'rejected')} className="rounded-full bg-red-100 px-4 py-3 text-sm font-black text-red-700">رفض</button></div></div></article>; }) : <EmptyCard text="لا توجد طلبات توثيق." />}
+            {filteredVerifications.length ? filteredVerifications.map((item) => { const meta = statusMeta(item.status); return <article key={item.id} className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"><div><span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ring-1 ${meta.cls}`}><meta.icon className="h-4 w-4" /> {meta.label}</span><h3 className="mt-3 text-xl font-black">{(item.request_type || item.type) === 'project' ? 'توثيق مشروع' : 'توثيق مستخدم'} {item.project_title ? `— ${item.project_title}` : ''}</h3><p className="mt-2 text-xs font-bold text-slate-500">المستخدم: {userByAuth.get(String(item.user_auth_id))?.name || userByAuth.get(String(item.user_auth_id))?.full_name || userByAuth.get(String(item.user_auth_id))?.email || item.user_auth_id} · المشروع: {item.project_id ? (projectById.get(String(item.project_id))?.title || item.project_title || item.project_id) : '—'}</p>{item.admin_note ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-700">{item.admin_note}</p> : null}</div><div className="flex flex-wrap gap-2">{item.project_id ? <Link target="_blank" href={`/${projectById.get(String(item.project_id))?.countryCode || 'om'}/ar/project/${encodeURIComponent(projectById.get(String(item.project_id))?.slug || String(item.project_id))}?adminPreview=1`} className="rounded-full bg-blue-50 px-4 py-3 text-sm font-black text-blue-700">معاينة المشروع</Link> : null}{item.document_url ? <PrivateDocumentButton url={item.document_url} className="rounded-full bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"/> : null}<button onClick={() => reviewVerification(item, 'approved')} className="rounded-full bg-blue-600 px-4 py-3 text-sm font-black text-white">قبول</button><button onClick={() => reviewVerification(item, 'revision')} className="rounded-full bg-amber-100 px-4 py-3 text-sm font-black text-amber-800">طلب تعديل</button><button onClick={() => reviewVerification(item, 'rejected')} className="rounded-full bg-red-100 px-4 py-3 text-sm font-black text-red-700">رفض</button></div></div></article>; }) : <EmptyCard text="لا توجد طلبات توثيق." />}
           </div>}
 
           {tab === 'packages' && <PackagesPanel packages={packages} form={packageForm} setForm={setPackageForm} savePackage={savePackage} deletePackage={deletePackage} />}
@@ -2070,7 +2057,7 @@ function AdminNoteDialog({ modal, onClose }: { modal: NonNullable<AdminNoteModal
 function UserEditDialog({ modal, setModal, onSave, onClose }: { modal: NonNullable<UserEditModal>; setModal: any; onSave: () => void; onClose: () => void }) {
   const f = modal.form;
   const setF = (patch: Record<string, any>) => setModal((m: any) => m ? ({ ...m, form: { ...m.form, ...patch } }) : m);
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"><div className="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl"><h3 className="text-2xl font-black">تعديل حساب المستخدم</h3><p className="mt-1 text-sm font-bold text-slate-500">{modal.user.email}</p><div className="mt-5 grid gap-3 md:grid-cols-2"><input className="admin-input" value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder="الاسم" /><input className="admin-input" value={f.phone} onChange={(e) => setF({ phone: e.target.value })} placeholder="الهاتف" /><input className="admin-input" value={f.whatsapp} onChange={(e) => setF({ whatsapp: e.target.value })} placeholder="واتساب" /><select className="admin-input" value={f.account_type} onChange={(e) => setF({ account_type: e.target.value })}><option value="investor">مستثمر</option><option value="owner">صاحب مشروع</option><option value="both">الاثنين معًا</option></select><select className="admin-input" value={f.subscription_status} onChange={(e) => setF({ subscription_status: e.target.value, plan: e.target.value })}><option value="free">Free</option><option value="starter">Starter</option><option value="pro">Pro</option><option value="elite">Elite</option><option value="business">Business</option></select><select className="admin-input" value={f.role} onChange={(e) => setF({ role: e.target.value })}><option value="user">User</option><option value="admin">Admin</option><option value="super_admin">Super Admin</option></select><label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 font-black"><input type="checkbox" checked={!!f.is_verified} onChange={(e) => setF({ is_verified: e.target.checked })} /> موثق</label><label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 font-black"><input type="checkbox" checked={!!f.is_blocked} onChange={(e) => setF({ is_blocked: e.target.checked })} /> محظور</label></div><div className="mt-5 flex justify-end gap-2"><button onClick={onClose} className="rounded-full bg-slate-100 px-5 py-3 font-black text-slate-700">إلغاء</button><button onClick={onSave} className="rounded-full bg-blue-600 px-5 py-3 font-black text-white">حفظ التعديل</button></div></div></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"><div className="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl"><h3 className="text-2xl font-black">تعديل حساب المستخدم</h3><p className="mt-1 text-sm font-bold text-slate-500">{modal.user.email}</p><div className="mt-5 grid gap-3 md:grid-cols-2"><input className="admin-input" value={f.name} onChange={(e) => setF({ name: e.target.value })} placeholder="الاسم" /><input className="admin-input" value={f.phone} onChange={(e) => setF({ phone: e.target.value })} placeholder="الهاتف" /><input className="admin-input" value={f.whatsapp} onChange={(e) => setF({ whatsapp: e.target.value })} placeholder="واتساب" /><select className="admin-input" value={f.account_type} onChange={(e) => setF({ account_type: e.target.value })}><option value="investor">مستثمر</option><option value="owner">صاحب مشروع</option><option value="both">الاثنين معًا</option></select><select className="admin-input" value={f.subscription_status} onChange={(e) => setF({ subscription_status: e.target.value, plan: e.target.value })}><option value="free">Free</option><option value="starter">Starter</option><option value="pro">Pro</option><option value="elite">Elite</option><option value="business">Business</option></select><select className="admin-input" value={f.role} onChange={(e) => setF({ role: e.target.value })}><option value="user">User</option><option value="admin">Admin</option><option value="super_admin">Super Admin</option></select><p className="rounded-xl bg-slate-50 p-3">التوثيق يعتمد على مراجعة المستندات.</p><label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 font-black"><input type="checkbox" checked={!!f.is_blocked} onChange={(e) => setF({ is_blocked: e.target.checked })} /> محظور</label></div><div className="mt-5 flex justify-end gap-2"><button onClick={onClose} className="rounded-full bg-slate-100 px-5 py-3 font-black text-slate-700">إلغاء</button><button onClick={onSave} className="rounded-full bg-blue-600 px-5 py-3 font-black text-white">حفظ التعديل</button></div></div></div>;
 }
 
 function ProjectEditDialog({ modal, setModal, onSave, onClose, addImage, deleteImage, updateProject, sponsorProject, deleteProject }: { modal: NonNullable<ProjectEditModal>; setModal: any; onSave: () => void; onClose: () => void; addImage: () => void; deleteImage: (image: any) => void; updateProject: (id: string, patch: Record<string, any>) => Promise<void>; sponsorProject: (project: AdminProject) => Promise<void>; deleteProject: (id: string) => Promise<void> }) {
@@ -2115,14 +2102,14 @@ function ProjectEditDialog({ modal, setModal, onSave, onClose, addImage, deleteI
           <textarea className="admin-input md:col-span-2 min-h-28" value={f.description_en || ''} onChange={(e) => setF({ description_en: e.target.value })} placeholder="Project description EN" />
           <input className="admin-input md:col-span-2" value={f.cover_image_url || ''} onChange={(e) => setF({ cover_image_url: e.target.value })} placeholder="رابط صورة الغلاف" />
           <select className="admin-input" value={f.status || 'approved'} onChange={(e) => setF({ status: e.target.value, moderation_status: e.target.value })}><option value="pending">قيد المراجعة</option><option value="approved">منشور</option><option value="revision">يحتاج تعديل</option><option value="rejected">مرفوض</option></select>
-          <label className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 font-black"><input type="checkbox" checked={!!f.is_verified} onChange={(e) => setF({ is_verified: e.target.checked, verification_status: e.target.checked ? 'approved' : 'pending' })} /> مشروع موثق</label>
+          <p className="rounded-2xl bg-white p-4">شارة التوثيق تعتمد على مراجعة جميع المستندات الحالية.</p>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button onClick={onClose} className="rounded-full bg-white px-5 py-3 font-black text-slate-700 ring-1 ring-slate-200">إغلاق</button><button onClick={onSave} className="rounded-full bg-blue-700 px-5 py-3 font-black text-white">حفظ التعديلات</button></div>
       </section>
 
       <aside className="grid gap-3">
         <button onClick={() => action({ status: 'approved' })} className="rounded-2xl bg-blue-700 px-5 py-4 text-right font-black text-white">نشر المشروع</button>
-        <button onClick={() => action({ is_verified: true, verified: true, verification_status: 'approved' })} className="rounded-2xl bg-blue-50 px-5 py-4 text-right font-black text-blue-800">توثيق المشروع</button>
+        <p className="rounded-2xl bg-blue-50 p-4">للتوثيق، راجع المستندات من تبويب التوثيق.</p>
         <button onClick={() => action({ is_featured: true, featured_until: new Date(Date.now() + 7 * 86400000).toISOString() })} className="rounded-2xl bg-amber-50 px-5 py-4 text-right font-black text-amber-800">تمييز 7 أيام</button>
         <button onClick={async () => { await sponsorProject(project); onClose(); }} className="rounded-2xl bg-yellow-100 px-5 py-4 text-right font-black text-yellow-900">ترويج المشروع</button>
         <button onClick={() => action({ status: 'revision' })} className="rounded-2xl bg-orange-50 px-5 py-4 text-right font-black text-orange-800">طلب تعديل من صاحب المشروع</button>

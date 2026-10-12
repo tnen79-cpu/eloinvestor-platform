@@ -9,7 +9,7 @@ async function requireAdmin(request: NextRequest) {
   if (error || !userData.user) throw new Error('UNAUTHENTICATED');
   const user = userData.user;
   const { data: profile } = await supabaseAdmin.from('users').select('role,admin_role,is_admin,admin_status').or(`auth_id.eq.${user.id},id.eq.${user.id},email.eq.${user.email}`).maybeSingle();
-  const role = String((profile as any)?.admin_role || (profile as any)?.role || user.user_metadata?.role || '').toLowerCase();
+  const role = String((profile as any)?.admin_role || (profile as any)?.role || '').toLowerCase();
   const status = String((profile as any)?.admin_status || 'active').toLowerCase();
   if (!((profile as any)?.is_admin === true || ['admin', 'super_admin', 'finance_admin'].includes(role)) || ['suspended', 'revoked', 'inactive'].includes(status)) throw new Error('FORBIDDEN');
 }

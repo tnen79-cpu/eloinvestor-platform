@@ -16,7 +16,7 @@ export function ProjectCard({ project, lang, country }: { project: UiProject; la
   const title = isAr ? project.titleAr : project.titleEn;
   const routeId = encodeURIComponent(project.id || project.slug);
   const href = `/${project.country}/${lang}/project/${routeId}`;
-  const score = project.verified ? 'A+' : project.roi && project.roi > 10 ? 'A' : 'B+';
+  const score = project.verified ? (isAr ? 'موثق' : 'Verified') : (isAr ? 'غير موثق' : 'Unverified');
 
   return (
     <article className="listing-card">
@@ -40,7 +40,7 @@ export function ProjectCard({ project, lang, country }: { project: UiProject; la
           <div className="score-chip">{score}</div>
         </div>
         <div className="insights">
-          <div className="insight"><span>{t('project', 'risk', isAr ? 'المخاطر' : 'Risk')}</span><b>{t('project', 'low', isAr ? 'منخفضة' : 'Low')}</b></div>
+          <div className="insight"><span>{isAr ? 'أساس العائد' : 'ROI basis'}</span><b>{project.roiSource === 'calculated' ? (isAr ? 'السعر والربح' : 'Price and profit') : (isAr ? 'بيانات المعلن' : 'Seller data')}</b></div>
           <div className="insight"><span>{t('project', 'demand', isAr ? 'الطلب' : 'Demand')}</span><b>{project.contacts ? t('project', 'high', isAr ? 'مرتفع' : 'High') : t('project', 'new', isAr ? 'جديد' : 'New')}</b></div>
           <div className="insight"><span>{t('project', 'views', isAr ? 'المشاهدات' : 'Views')}</span><b>{project.views || 0}</b></div>
         </div>
