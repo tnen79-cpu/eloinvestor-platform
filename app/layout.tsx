@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: { default: 'إلو مستثمر | منصة الاستثمار الذكي', template: '%s | إلو مستثمر' },
   description: 'منصة تربط المستثمرين بأصحاب المشاريع والفرص الاستثمارية الموثوقة في عُمان والخليج.',
   manifest: '/manifest.json',
-  themeColor: '#1d4ed8',
+  themeColor: '#101e39',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'إلو مستثمر' },
   openGraph: {
     type: 'website',
