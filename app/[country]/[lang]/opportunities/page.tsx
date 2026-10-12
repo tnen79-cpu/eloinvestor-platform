@@ -24,6 +24,11 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
   const page=Math.min(Math.max(1,Number.isFinite(rawPage)?Math.floor(rawPage):1),Math.max(1,Math.ceil(list.length/pageSize)));
   const pageRows=list.slice((page-1)*pageSize,page*pageSize);
   const pageUrl=(nextPage:number)=>{const query=new URLSearchParams();Object.entries(rawSearch).forEach(([k,v])=>{if(typeof v==='string'&&k!=='page')query.set(k,v);});query.set('page',String(nextPage));return `/${activeCountry.code}/${lang}/opportunities?${query}#results`;};
+  const isMatching = rawSearch.match === '1';
+  const matchingBudget = typeof rawSearch.maxPrice === 'string' ? rawSearch.maxPrice : '';
+  const matchingSector = typeof rawSearch.sector === 'string' ? rawSearch.sector : 'all';
+  const matchingVerified = rawSearch.verified === '1';
+  const matchingBase = `/${activeCountry.code}/${lang}/opportunities`;
   const cities = Array.from(new Set([...(typeof rawSearch.city==='string'?[rawSearch.city]:[]),...list.map((p) => isAr ? p.cityAr : p.cityEn).filter(Boolean)])).slice(0, 12);
 
   return (
@@ -43,7 +48,7 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
             <div className="hero-stats">
               <div className="hero-stat"><b>{list.length}</b><span>{tr('opportunities', 'active', isAr ? 'فرصة نشطة' : 'Active')}</span></div>
               <div className="hero-stat"><b>{list.filter(p => p.verified).length}</b><span>{tr('home', 'verified_count', isAr ? 'فرصة موثقة' : 'Verified')}</span></div>
-              <div className="hero-stat"><b>{list.filter(p => (p.roi || 0) > 10).length}</b><span>{tr('opportunities', 'hot_deals', isAr ? 'فرصة ساخنة' : 'Hot deals')}</span></div>
+              <div className="hero-stat"><b>{list.filter(p => p.isSponsored).length}</b><span>{isAr ? 'فرصة ممولة' : 'Sponsored opportunities'}</span></div>
             </div>
           </div>
 
@@ -59,6 +64,37 @@ export default async function OpportunitiesPage({ params, searchParams }: { para
             <div className="hero-tags"><span>{isAr ? 'موثقة' : 'Verified'}</span><span>{isAr ? 'فرص ساخنة' : 'Hot deals'}</span><span>{isAr?'مقارنة ومتابعة':'Compare and review'}</span><span>{activeCountry.flag}</span></div>
           </aside>
         </div>
+      </section>
+
+      <section className="my-5 rounded-[24px] border border-blue-100 bg-white p-5 shadow-sm md:p-7" aria-labelledby="match-heading">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span className="text-xs font-bold tracking-wide text-blue-700">{isAr ? 'مساعد اكتشاف الفرص' : 'Opportunity discovery assistant'}</span>
+            <h2 id="match-heading" className="mt-1 text-2xl font-black text-slate-900">{isAr ? 'خلّينا نلاقي الفرصة المناسبة لميزانيتك' : 'Find opportunities that fit your budget'}</h2>
+            <p className="mt-2 text-sm text-slate-600">{isAr ? 'مطابقة شفافة حسب الميزانية والقطاع والتوثيق، وليست توصية استثمارية أو ضمانًا للعائد.' : 'Transparent matching by budget, sector and verification; not investment advice or guaranteed returns.'}</p>
+          </div>
+          {isMatching && <Link className="btn btn-outline" href={matchingBase + '#results'}>{isAr ? 'إلغاء المطابقة' : 'Clear matching'}</Link>}
+        </div>
+        <form action={matchingBase + '#results'} className="grid gap-3 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
+          <input type="hidden" name="match" value="1" />
+          <label className="grid gap-2 text-sm font-bold text-slate-700">
+            {isAr ? 'ميزانيتك القصوى' : 'Maximum budget'}
+            <input aria-label={isAr ? 'الميزانية القصوى' : 'Maximum budget'} type="number" name="maxPrice" min="1" step="1" required defaultValue={isMatching ? matchingBudget : ''} placeholder={isAr ? 'مثلاً 25000' : 'e.g. 25000'} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3" />
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-slate-700">
+            {isAr ? 'القطاع المفضّل' : 'Preferred sector'}
+            <select name="sector" defaultValue={isMatching ? matchingSector : 'all'} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3">
+              <option value="all">{isAr ? 'جميع القطاعات' : 'All sectors'}</option>
+              {sectors.map(s => <option key={s.key} value={s.key}>{isAr ? s.nameAr : s.nameEn}</option>)}
+            </select>
+          </label>
+          <label className="flex min-h-12 items-center gap-2 text-sm font-bold text-slate-700">
+            <input type="checkbox" name="verified" value="1" defaultChecked={isMatching && matchingVerified} className="h-5 w-5 accent-blue-700" />
+            {isAr ? 'موثقة فقط' : 'Verified only'}
+          </label>
+          <button type="submit" className="btn btn-blue min-h-12">{isAr ? 'اعرض الفرص المطابقة' : 'Find matching opportunities'}</button>
+        </form>
+        {isMatching && <p className="mt-4 text-sm font-bold text-blue-800" role="status">{isAr ? `نتائج المطابقة الحالية: ${list.length} فرصة حسب المعايير المختارة.` : `Current matches: ${list.length} opportunities based on your filters.`}</p>}
       </section>
 
       <Suspense fallback={<div className="advanced-search-card advanced-search-skeleton"><div className="advanced-main"><span /><span /><span /><span /></div></div>}>
